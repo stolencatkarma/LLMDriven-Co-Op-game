@@ -156,8 +156,9 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             if not campaign:
                 channel = bot.get_channel(int(discord_channel))
                 await session_zero(channel)
-            else:
-                await send_initial_world_state()
+            # Do not auto-start campaign or adventure here
+            # else:
+            #     await send_initial_world_state()
 
     @bot.event
     async def on_message(message):
@@ -189,13 +190,44 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         'sell': ('commands.sell', 'sell_command'),
         'shop': ('commands.shop', 'shop_command'),
         'help': ('commands.help', 'help_command'),
+        # New campaign/adventure commands
+        'startcampaign': (None, None),
+        'startadventure': (None, None),
     }
     
     async def handle_command(message, content):
         parts = content[1:].split()
         command = parts[0].lower() if parts else ''
         args = parts[1:]
-        if command in command_map:
+        if command == 'startcampaign':
+            campaign = load_campaign_state()
+            if not campaign:
+                await message.channel.send("No campaign exists. Please ask all players to create their characters first.")
+                return
+            if campaign.get('campaign_started'):
+                await message.channel.send("Campaign has already started!")
+                return
+            # Mark campaign as started
+            campaign['campaign_started'] = True
+            save_campaign_state(campaign)
+            await message.channel.send("Campaign is starting!")
+            await send_initial_world_state()
+            return
+        if command == 'startadventure':
+            campaign = load_campaign_state()
+            if not campaign or not campaign.get('campaign_started'):
+                await message.channel.send("No campaign is running. Use !startcampaign first.")
+                return
+            adv_idx = campaign.get('current_adventure', 0)
+            if adv_idx < len(campaign.get('adventures', [])) and not campaign['adventures'][adv_idx].get('completed', False):
+                await message.channel.send("Current adventure is still ongoing!")
+                return
+            # Start a new adventure
+            adventure = await start_new_adventure(campaign)
+            await message.channel.send(f"**New Adventure!**\n{adventure['name']}\n{adventure['summary']}")
+            await send_initial_world_state()
+            return
+        if command in command_map and command_map[command][0]:
             module_name, func_name = command_map[command]
             mod = importlib.import_module(module_name)
             func = getattr(mod, func_name)
@@ -217,6 +249,10 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             await message.channel.send(f"Unknown command: {command}")
 
     async def send_initial_world_state():
+        # Only show world state if campaign has started
+        campaign = load_campaign_state()
+        if not campaign or not campaign.get('campaign_started'):
+            return
         # Load or create campaign/adventure
         campaign = load_campaign_state()
         if not campaign:
@@ -371,3 +407,6 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             if campaign:
                 campaign["world_state"] = world_state.copy()
                 save_campaign_state(campaign)
+
+    # At the end of init_bot, start the bot and block the main thread
+    bot.run(discord_token)

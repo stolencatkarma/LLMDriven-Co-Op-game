@@ -21,21 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 set_rooms_db_path(BASE_DIR / "db" / "rooms.json")
 
 if __name__ == "__main__":
-    # Graceful shutdown handler for Ctrl+C
-    def shutdown_handler(sig, frame):
-        print("\n[Server] Shutting down...")
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, shutdown_handler)
-    signal.signal(signal.SIGTERM, shutdown_handler)
-
-    if DISCORD_TOKEN:
-        init_bot(
-            discord_token=DISCORD_TOKEN,
-            discord_channel=DISCORD_CHANNEL,
-            base_dir=BASE_DIR,
-            ollama_host=OLLAMA_HOST,
-            ollama_model=OLLAMA_MODEL
-        )
-    else:
-        print("DISCORD_TOKEN is required in environment variables")
+    print("[DEPRECATED] Please run the server using: python src/server/run_server.py")
+    print("This entry point is deprecated and will be removed in the future.")
+    # Optionally, you could call run_server.main() here for backward compatibility
+    # from run_server import main; main()
