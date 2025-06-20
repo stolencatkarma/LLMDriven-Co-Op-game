@@ -31,6 +31,7 @@ def init_bot(
     import json
     CAMPAIGN_STATE_PATH = base_dir / "db" / "campaign_state.json"
     CHARACTERS_PATH = base_dir / "db" / "characters.json"
+    CAMPAIGN_JSON_PATH = base_dir / "db" / "campaign.json"
 
     def save_campaign_state(state):
         with open(CAMPAIGN_STATE_PATH, "w", encoding="utf-8") as f:
@@ -51,6 +52,16 @@ def init_bot(
     def save_characters(characters):
         with open(CHARACTERS_PATH, "w", encoding="utf-8") as f:
             json.dump(characters, f, indent=2)
+
+    def save_campaign_json(state):
+        with open(CAMPAIGN_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+
+    def load_campaign_json():
+        if CAMPAIGN_JSON_PATH.exists():
+            with open(CAMPAIGN_JSON_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return None
 
     global world_state, chat_history
     campaign = load_campaign_state()
@@ -78,21 +89,71 @@ def init_bot(
 
     characters = load_characters()
 
+    def get_example_adventure_descriptions():
+        example_dir = base_dir / "example_adventures"
+        adventure_files = glob.glob(str(example_dir / "*.md"))
+        adventures = []
+        for file_path in adventure_files:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                # Use the first heading and the first long paragraph as the description
+                lines = content.splitlines()
+                title = next((l.strip('# ').strip() for l in lines if l.startswith('#')), "Example Adventure")
+                # Find the first paragraph after the title
+                desc = ""
+                for i, l in enumerate(lines):
+                    if l.startswith('#'):
+                        # Find next non-empty, non-heading line
+                        for l2 in lines[i+1:]:
+                            if l2.strip() and not l2.startswith('#'):
+                                desc = l2.strip()
+                                break
+                        break
+                adventures.append({"title": title, "description": desc, "full_text": content})
+        return adventures
+
     async def start_new_campaign():
-        prompt = "Create a new D&D campaign. Give it a name and a 2-3 sentence overarching story."
+        # Use example adventures to inspire the campaign
+        example_adventures = get_example_adventure_descriptions()
+        if example_adventures:
+            # Pick one at random for now (could prompt DM for selection in future)
+            import random
+            chosen = random.choice(example_adventures)
+            prompt = f"Design a campaign inspired by the following adventure path. Use the setting, themes, and structure, but adapt as needed for a new group:\n\n{chosen['title']}\n\n{chosen['description']}\n\n{chosen['full_text']}\n\nGive the campaign a name and a 2-3 sentence overarching story."
+        else:
+            prompt = "Create a new D&D campaign. Give it a name and a 2-3 sentence overarching story."
         main_story = await get_llm_response(prompt, ollama_host, ollama_model)
         campaign = {
             "name": main_story.split("\n")[0].strip(),
             "main_story": main_story.strip(),
             "adventures": [],
             "current_adventure": 0,
-            "world_state": world_state.copy()  # Save initial world state
+            "world_state": world_state.copy(),
+            "campaign_started": False
         }
         save_campaign_state(campaign)
+        # Also save to campaign.json
+        campaign_json = {
+            "name": campaign["name"],
+            "main_story": campaign["main_story"],
+            "adventures": [],
+            "current_adventure": 0,
+            "campaign_started": False
+        }
+        save_campaign_json(campaign_json)
         return campaign
 
     async def start_new_adventure(campaign):
-        prompt = f"Create a new short adventure for the campaign '{campaign['name']}'. Give it a name and a 1-2 sentence summary."
+        campaign_json = load_campaign_json() or {}
+        adv_idx = len(campaign["adventures"])
+        # Use DM-provided description if available
+        adventure_desc = ""
+        if campaign_json.get("adventures") and adv_idx < len(campaign_json["adventures"]):
+            adventure_desc = campaign_json["adventures"][adv_idx].get("description", "")
+        if adventure_desc:
+            prompt = f"Create the full adventure for '{campaign['name']}' - Adventure: '{adventure_desc}'. Use the DM's description as the basis."
+        else:
+            prompt = f"Create a new short adventure for the campaign '{campaign['name']}'. Give it a name and a 1-2 sentence summary."
         adv = await get_llm_response(prompt, ollama_host, ollama_model)
         adventure = {
             "name": adv.split("\n")[0].strip(),
@@ -101,8 +162,23 @@ def init_bot(
         }
         campaign["adventures"].append(adventure)
         campaign["current_adventure"] = len(campaign["adventures"]) - 1
-        campaign["world_state"] = world_state.copy()  # Save world state at adventure start
+        campaign["world_state"] = world_state.copy()
         save_campaign_state(campaign)
+        # Also update campaign.json with adventure summary if not present
+        if campaign_json.get("adventures") and adv_idx < len(campaign_json["adventures"]):
+            campaign_json["adventures"][adv_idx]["name"] = adventure["name"]
+            campaign_json["adventures"][adv_idx]["summary"] = adventure["summary"]
+        else:
+            adventures_json = campaign_json.get("adventures", [])
+            adventures_json.append({
+                "name": adventure["name"],
+                "summary": adventure["summary"],
+                "description": adventure["summary"]
+            })
+            campaign_json["adventures"] = adventures_json
+        campaign_json["current_adventure"] = campaign["current_adventure"]
+        campaign_json["campaign_started"] = campaign.get("campaign_started", False)
+        save_campaign_json(campaign_json)
         return adventure
 
     def run_sync(awaitable):
@@ -278,8 +354,10 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             world_state["image"] = image_path
         print(f"[DEBUG] image_path: {image_path}, exists: {Path(image_path).exists() if image_path else 'N/A'}")
         if image_path and Path(image_path).exists():
-            with open(image_path, "rb") as img_fp:
-                await channel.send(world_msg, file=File(img_fp, Path(image_path).name))
+            embed = discord.Embed(description=world_msg)
+            file = File(image_path, Path(image_path).name)
+            embed.set_image(url=f"attachment://{Path(image_path).name}")
+            await channel.send(embed=embed, file=file)
         else:
             await channel.send(world_msg)
         # --- AUTO-SAVE CAMPAIGN STATE after world state update ---
