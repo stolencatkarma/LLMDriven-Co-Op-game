@@ -85,7 +85,8 @@ def init_bot(
             "name": main_story.split("\n")[0].strip(),
             "main_story": main_story.strip(),
             "adventures": [],
-            "current_adventure": 0
+            "current_adventure": 0,
+            "world_state": world_state.copy()  # Save initial world state
         }
         save_campaign_state(campaign)
         return campaign
@@ -100,6 +101,7 @@ def init_bot(
         }
         campaign["adventures"].append(adventure)
         campaign["current_adventure"] = len(campaign["adventures"]) - 1
+        campaign["world_state"] = world_state.copy()  # Save world state at adventure start
         save_campaign_state(campaign)
         return adventure
 
@@ -134,6 +136,16 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         char_data = {"name": name, "race_class": race_class, "backstory": backstory}
         characters[str(user.id)] = char_data
         save_characters(characters)
+        # --- AUTO-SAVE CAMPAIGN STATE (character join) ---
+        campaign = load_campaign_state()
+        if campaign:
+            if "players" not in world_state:
+                world_state["players"] = []
+            user_mention = get_user_mention(user)
+            if user_mention not in world_state["players"]:
+                world_state["players"].append(user_mention)
+            campaign["world_state"] = world_state.copy()
+            save_campaign_state(campaign)
         await dm.send(f"Character creation complete! Welcome, {name} the {race_class}.")
 
     @bot.event
@@ -192,6 +204,11 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 'world_state': world_state
             }
             await func(message, args, **kwargs)
+            # --- AUTO-SAVE CAMPAIGN STATE after any command ---
+            campaign = load_campaign_state()
+            if campaign:
+                campaign["world_state"] = world_state.copy()
+                save_campaign_state(campaign)
         else:
             await message.channel.send(f"Unknown command: {command}")
 
@@ -225,6 +242,11 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 await channel.send(world_msg, file=File(img_fp, Path(image_path).name))
         else:
             await channel.send(world_msg)
+        # --- AUTO-SAVE CAMPAIGN STATE after world state update ---
+        campaign = load_campaign_state()
+        if campaign:
+            campaign["world_state"] = world_state.copy()
+            save_campaign_state(campaign)
 
     async def handle_player_message(message):
         player = str(message.author)
@@ -232,6 +254,11 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         
         if player not in world_state["players"]:
             world_state["players"].append(player)
+            # --- AUTO-SAVE CAMPAIGN STATE ---
+            campaign = load_campaign_state()
+            if campaign:
+                campaign["world_state"] = world_state.copy()
+                save_campaign_state(campaign)
         
         chat_history.append({"sender": player, "message": content})
         await process_player_action(message, content)
@@ -266,6 +293,11 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                     set_room(prev_location, prev_room)
             update_world_state_from_room(world_state, next_room)
         await send_room_update(message.channel)
+        # --- AUTO-SAVE CAMPAIGN STATE ---
+        campaign = load_campaign_state()
+        if campaign:
+            campaign["world_state"] = world_state.copy()
+            save_campaign_state(campaign)
 
     async def create_new_room(message, new_location: str, prev_location: str):
         prev_room = get_room(prev_location)
@@ -283,23 +315,38 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         if not exits:
             exits = [prev_location]
         image_path = await ensure_world_image(new_location, server_message)
+        # Build named exits: use LLM to suggest names, fallback to generic if needed
+        named_exits = {}
+        for exit_name in exits:
+            if exit_name.lower() == prev_location.lower():
+                named_exits["back"] = prev_location
+            else:
+                # Use the exit name as the direction if possible
+                named_exits[exit_name.lower()] = exit_name
         set_room(new_location, {
             "description": server_message,
             "image": image_path,
-            "exits": exits,
+            "exits": named_exits,
             "previous": prev_location
         })
         # Ensure two-way connection in previous room
         if prev_room:
-            prev_exits = prev_room.get("exits", [])
-            if new_location not in prev_exits:
-                prev_exits.append(new_location)
+            prev_exits = prev_room.get("exits", {})
+            if isinstance(prev_exits, list):
+                prev_exits = {e: new_location for e in prev_exits if e != new_location}
+            if new_location not in prev_exits.values():
+                prev_exits["forward"] = new_location
                 prev_room["exits"] = prev_exits
                 set_room(prev_location, prev_room)
         world_state.update({
             "description": server_message,
             "image": image_path
         })
+        # --- AUTO-SAVE CAMPAIGN STATE ---
+        campaign = load_campaign_state()
+        if campaign:
+            campaign["world_state"] = world_state.copy()
+            save_campaign_state(campaign)
 
     async def generate_dm_response(message, content: str, prev_location: str):
         async with message.channel.typing():
@@ -315,7 +362,8 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 room_data["exits"] = exits
                 set_room(world_state["location"], room_data)
             await send_dm_response(message.channel, server_message, exits, world_state, lambda t, c: replace_mentions(t, c, get_user_mention))
-
-    # Start the bot
-    if discord_token:
-        bot.run(discord_token)
+            # --- AUTO-SAVE CAMPAIGN STATE ---
+            campaign = load_campaign_state()
+            if campaign:
+                campaign["world_state"] = world_state.copy()
+                save_campaign_state(campaign)
