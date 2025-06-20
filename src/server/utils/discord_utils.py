@@ -8,6 +8,11 @@ def replace_mentions(text, channel, get_user_mention):
         text
     )
 
-def get_user_mention(user_id, guild):
-    user = guild.get_member(int(user_id))
-    return f"@{user.display_name}" if user else f"@{user_id}"
+def get_user_mention(user, guild):
+    user_id = getattr(user, "id", None) or user
+    if guild is None:
+        return f"<@{user_id}>"
+    member = guild.get_member(int(user_id))
+    if member:
+        return member.mention
+    return f"<@{user_id}>"

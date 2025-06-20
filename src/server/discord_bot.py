@@ -119,31 +119,65 @@ def init_bot(
         # Use example adventures to inspire the campaign
         example_adventures = get_example_adventure_descriptions()
         if example_adventures:
-            # Pick one at random for now (could prompt DM for selection in future)
             import random
             chosen = random.choice(example_adventures)
-            prompt = f"Design a campaign inspired by the following adventure path. Use the setting, themes, and structure, but adapt as needed for a new group:\n\n{chosen['title']}\n\n{chosen['description']}\n\n{chosen['full_text']}\n\nGive the campaign a name and a 2-3 sentence overarching story."
+            prompt = f"Design a campaign inspired by the following adventure path. Use the setting, themes, and structure, but adapt as needed for a new group:\n\n{chosen['title']}\n\n{chosen['description']}\n\n{chosen['full_text']}\n\nGive the campaign a name and a 2-3 sentence overarching story. Then, outline 3-5 short adventure summaries (1-2 sentences each) that could make up the campaign. Format as: Adventure 1: <summary>\nAdventure 2: <summary>..."
         else:
-            prompt = "Create a new D&D campaign. Give it a name and a 2-3 sentence overarching story."
+            prompt = "Create a new D&D campaign. Give it a name and a 2-3 sentence overarching story. Then, outline 3-5 short adventure summaries (1-2 sentences each) that could make up the campaign. Format as: Adventure 1: <summary>\nAdventure 2: <summary>..."
         main_story = await get_llm_response(prompt, ollama_host, ollama_model)
+        # Parse adventure summaries from the LLM response
+        import re
+        adventure_summaries = []
+        for match in re.findall(r"Adventure \d+: (.+)", main_story):
+            adventure_summaries.append(match.strip())
+        # Set world_state to match the start of the campaign/adventure if possible
+        starting_location = "Town Square"
+        starting_description = world_state["description"]
+        if adventure_summaries:
+            # Try to extract a location from the first adventure summary
+            import re
+            first_summary = adventure_summaries[0]
+            # Look for a location in the first sentence (before a colon or period)
+            match = re.match(r"([^.\n:]+)[.:]", first_summary)
+            if match:
+                starting_location = match.group(1).strip()
+            starting_description = first_summary.strip()
         campaign = {
             "name": main_story.split("\n")[0].strip(),
             "main_story": main_story.strip(),
             "adventures": [],
             "current_adventure": 0,
-            "world_state": world_state.copy(),
+            "world_state": {
+                "location": starting_location,
+                "players": [],
+                "description": starting_description,
+                "image": None
+            },
             "campaign_started": False
         }
-        save_campaign_state(campaign)
-        # Also save to campaign.json
+        # Add adventure summaries to campaign and campaign.json
+        adventures_json = []
+        for summary in adventure_summaries:
+            adventures_json.append({
+                "name": "",
+                "summary": summary,
+                "description": summary
+            })
         campaign_json = {
             "name": campaign["name"],
             "main_story": campaign["main_story"],
-            "adventures": [],
+            "adventures": adventures_json,
             "current_adventure": 0,
             "campaign_started": False
         }
         save_campaign_json(campaign_json)
+        # Only create the first adventure now, using its summary as the prompt
+        if adventure_summaries:
+            campaign["adventures"] = []
+            campaign["current_adventure"] = 0
+            first_adventure = await start_new_adventure(campaign)
+            campaign["adventures"].append(first_adventure)
+        save_campaign_state(campaign)
         return campaign
 
     async def start_new_adventure(campaign):
@@ -192,11 +226,10 @@ def init_bot(
             return asyncio.new_event_loop().run_until_complete(awaitable)
 
     async def session_zero(channel):
-        await channel.send("Welcome to Session Zero! Let's create your characters. Each player, please say anything in chat to begin your character creation journey.")
+        await channel.send("Game State: Session Zero\nWelcome to Session Zero! Let's create your characters. Each player, please say anything in chat to begin your character creation journey.")
 
     async def guide_character_creation(user):
         dm = await user.create_dm()
-        
         # World/setting intro for the player
         await dm.send("""
 Welcome to the campaign! All adventures take place in and around a sprawling Mega City and its surrounding wasteland. The Mega City is a towering, neon-lit metropolis filled with advanced technology, cybernetic enhancements, powerful corporations, and a stark divide between rich and poor. Outside the city lies a dangerous wasteland of ruins, mutants, and lawless zones. Magic is rare or replaced by psionics and advanced science. Please create a character that fits this setting (e.g., cybernetics, hacking, futuristic weapons, etc).
@@ -220,24 +253,58 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         if campaign:
             if "players" not in world_state:
                 world_state["players"] = []
-            user_mention = get_user_mention(user)
+            user_mention = get_user_mention(user, None)
             if user_mention not in world_state["players"]:
                 world_state["players"].append(user_mention)
             campaign["world_state"] = world_state.copy()
             save_campaign_state(campaign)
         await dm.send(f"Character creation complete! Welcome, {name} the {race_class}.")
+        # Announce in main channel
+        if discord_channel:
+            channel = bot.get_channel(int(discord_channel))
+            if channel:
+                await channel.send(f"{user.display_name} has created a character! Game State: Session Zero.")
+
+    # --- State Machine States ---
+    # 'pre_session_zero' - No campaign exists
+    # 'session_zero' - Campaign exists, character creation phase
+    # 'campaign_started' - Campaign started, no adventure running
+    # 'adventure_running' - An adventure is active
+
+    def get_campaign_state():
+        campaign = load_campaign_state()
+        if not campaign:
+            return 'pre_session_zero'
+        if not campaign.get('campaign_started'):
+            return 'session_zero'
+        adventures = campaign.get('adventures', [])
+        adv_idx = campaign.get('current_adventure', 0)
+        if campaign.get('campaign_started') and adv_idx < len(adventures) and not adventures[adv_idx].get('completed', False):
+            return 'adventure_running'
+        return 'campaign_started'
 
     @bot.event
     async def on_ready():
         print(f"Logged in as {bot.user} (ID: {bot.user.id})")
         if discord_channel:
-            campaign = load_campaign_state()
-            if not campaign:
-                channel = bot.get_channel(int(discord_channel))
+            state = get_campaign_state()
+            if state == 'pre_session_zero':
+                campaign = await start_new_campaign()
+                save_campaign_state(campaign)
+                # Also update campaign.json
+                campaign_json = {
+                    "name": campaign["name"],
+                    "main_story": campaign["main_story"],
+                    "adventures": [],
+                    "current_adventure": 0,
+                    "campaign_started": False,
+                    "state": "session_zero"
+                }
+                save_campaign_json(campaign_json)
+            channel = bot.get_channel(int(discord_channel))
+            if state == 'pre_session_zero' or state == 'session_zero':
                 await session_zero(channel)
             # Do not auto-start campaign or adventure here
-            # else:
-            #     await send_initial_world_state()
 
     @bot.event
     async def on_message(message):
@@ -245,40 +312,83 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             return
         if discord_channel and str(message.channel.id) != discord_channel:
             return
-        # Character creation for new users
+        state = get_campaign_state()
+        # Only allow character creation during session_zero
         if isinstance(message.channel, discord.DMChannel):
-            # Already handled in guide_character_creation
+            if state == 'pre_session_zero':
+                await message.channel.send("The campaign setup is not complete yet. Please wait for the DM to begin Session Zero and character creation.")
+                return
+            if state == 'session_zero':
+                await guide_character_creation(message.author)
+                return
+            await message.channel.send("Character creation is only allowed during Session Zero.")
             return
         user_id = str(message.author.id)
-        if user_id not in characters:
-            await guide_character_creation(message.author)
+        if state == 'pre_session_zero':
+            await message.channel.send("The campaign setup is not complete yet. Please wait for the DM to begin Session Zero and character creation.")
             return
-        content = message.content.strip()
-        if content.startswith('!'):
-            await handle_command(message, content)
-        else:
-            await handle_player_message(message)
+        if state == 'session_zero':
+            if user_id not in characters:
+                await guide_character_creation(message.author)
+                return
+            content = message.content.strip()
+            # Only answer if the bot is mentioned
+            bot_mention = bot.user.mention if bot.user else None
+            mentioned = False
+            if bot_mention and bot_mention in content:
+                mentioned = True
+            elif bot.user and bot.user.name.lower() in content.lower():
+                mentioned = True
+            if content.startswith('!'):
+                await handle_command(message, content)
+            elif mentioned:
+                await handle_session_zero_question(message)
+            else:
+                # Remain silent, let players chat among themselves
+                pass
+            return
+        if state == 'campaign_started':
+            content = message.content.strip()
+            if content.startswith('!'):
+                await handle_command(message, content)
+            else:
+                await handle_campaign_started_message(message)
+            return
+        if state == 'adventure_running':
+            content = message.content.strip()
+            if content.startswith('!'):
+                await handle_command(message, content)
+            else:
+                await handle_player_message(message)
+            return
+        # If unknown state, ignore all messages
 
-    command_map = {
-        'roll': ('commands.roll', 'roll_command'),
-        'move': ('commands.move', 'move_command'),
-        'equip': ('commands.equip', 'equip_command'),
-        'equipment': ('commands.equipment', 'equipment_command'),
-        'players': ('commands.players', 'players_command'),
-        'buy': ('commands.buy', 'buy_command'),
-        'sell': ('commands.sell', 'sell_command'),
-        'shop': ('commands.shop', 'shop_command'),
-        'help': ('commands.help', 'help_command'),
-        # New campaign/adventure commands
-        'startcampaign': (None, None),
-        'startadventure': (None, None),
-    }
-    
+    async def handle_campaign_started_message(message):
+        """Handle player messages during campaign_started (shopping, downtime, pre-adventure)."""
+        campaign = load_campaign_state()
+        if not campaign:
+            await message.channel.send("No campaign info available yet.")
+            return
+        context = campaign.get("main_story", "")
+        prompt = (
+            "You are the DM. The campaign has started, but no adventure is running yet. "
+            "Players may shop, explore the town, interact with NPCs, or prepare for the adventure. "
+            "Answer as the DM, roleplaying shopkeepers, describing shops, prices, and available items, or responding to downtime activities. "
+            "Do NOT start the adventure or narrate story events.\n\n"
+            f"Campaign Info:\n{context}\n\nPlayer Message:\n{message.content.strip()}"
+        )
+        response = await get_llm_response(prompt, ollama_host, ollama_model)
+        await message.channel.send(response)
+
     async def handle_command(message, content):
+        state = get_campaign_state()
         parts = content[1:].split()
         command = parts[0].lower() if parts else ''
         args = parts[1:]
         if command == 'startcampaign':
+            if state != 'session_zero':
+                await message.channel.send("You can only start the campaign after Session Zero (character creation phase).")
+                return
             campaign = load_campaign_state()
             if not campaign:
                 await message.channel.send("No campaign exists. Please ask all players to create their characters first.")
@@ -288,23 +398,29 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 return
             # Mark campaign as started
             campaign['campaign_started'] = True
+            campaign['state'] = 'campaign_started'
             save_campaign_state(campaign)
             await message.channel.send("Campaign is starting!")
             await send_initial_world_state()
             return
         if command == 'startadventure':
-            campaign = load_campaign_state()
-            if not campaign or not campaign.get('campaign_started'):
-                await message.channel.send("No campaign is running. Use !startcampaign first.")
+            if state != 'campaign_started':
+                await message.channel.send("You can only start a new adventure after the campaign has started and no adventure is running.")
                 return
+            campaign = load_campaign_state()
             adv_idx = campaign.get('current_adventure', 0)
             if adv_idx < len(campaign.get('adventures', [])) and not campaign['adventures'][adv_idx].get('completed', False):
                 await message.channel.send("Current adventure is still ongoing!")
                 return
             # Start a new adventure
             adventure = await start_new_adventure(campaign)
+            campaign['state'] = 'adventure_running'
+            save_campaign_state(campaign)
             await message.channel.send(f"**New Adventure!**\n{adventure['name']}\n{adventure['summary']}")
             await send_initial_world_state()
+            return
+        if state != 'adventure_running' and command not in ['help', 'players']:
+            await message.channel.send("You can only use this command during an active adventure.")
             return
         if command in command_map and command_map[command][0]:
             module_name, func_name = command_map[command]
@@ -357,11 +473,13 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             world_state["image"] = image_path
         print(f"[DEBUG] image_path: {image_path}, exists: {Path(image_path).exists() if image_path else 'N/A'}")
         if image_path and Path(image_path).exists():
+            print(f"[DEBUG] Sending image to Discord: {image_path}")
             embed = discord.Embed(description=world_msg)
             file = File(image_path, Path(image_path).name)
             embed.set_image(url=f"attachment://{Path(image_path).name}")
             await channel.send(embed=embed, file=file)
         else:
+            print(f"[DEBUG] No image to send. image_path: {image_path}")
             await channel.send(world_msg)
         # --- AUTO-SAVE CAMPAIGN STATE after world state update ---
         campaign = load_campaign_state()
@@ -474,10 +592,12 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             server_message = await get_llm_response(content, ollama_host, ollama_model)
             room_data = get_room(world_state["location"]) or {}
             exits = extract_exits_from_dm(server_message)
+            # Remove any existing Exits line from the LLM response
+            import re
+            server_message = re.sub(r"\n?Exits:.*", "", server_message, flags=re.IGNORECASE).rstrip()
             # Always append Exits line to the message
             exits_line = f"Exits: {', '.join(exits) if exits else 'None'}"
-            if not server_message.strip().endswith(exits_line):
-                server_message = server_message.rstrip() + f"\n\n{exits_line}"
+            server_message = server_message + f"\n\n{exits_line}"
             chat_history.append({"sender": "DM", "message": server_message})
             if exits:
                 room_data["exits"] = exits
@@ -488,6 +608,53 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             if campaign:
                 campaign["world_state"] = world_state.copy()
                 save_campaign_state(campaign)
+
+    async def handle_session_zero_question(message):
+        """Answer player questions about the campaign/rules during session_zero after character creation."""
+        campaign = load_campaign_state()
+        if not campaign:
+            await message.channel.send("No campaign info available yet.")
+            return
+        context = campaign.get("main_story", "")
+        import re
+        context_clean = re.sub(r"^.*Exits:.*$", "", context, flags=re.MULTILINE).strip()
+        prompt = (
+            "You are the DM. Answer the player's question as a helpful guide about the campaign world, setting, or rules. "
+            "Do NOT narrate the current in-game situation, location, or events. Only provide information about the world, lore, rules, or character options. "
+            "If the question is about the story so far, say that the adventure hasn't started yet.\n\n"
+            f"Campaign Info:\n{context_clean}\n\nPlayer Question:\n{message.content.strip()}"
+        )
+        async with message.channel.typing():
+            response = await get_llm_response(prompt, ollama_host, ollama_model)
+            response_clean = re.sub(r"^.*Exits:.*$", "", response, flags=re.MULTILINE).strip()
+            await message.channel.send(response_clean)
+
+    # Ensure DB files exist, create if missing
+    if not CAMPAIGN_STATE_PATH.exists():
+        # Create a new campaign and save to file
+        import asyncio
+        campaign = asyncio.get_event_loop().run_until_complete(start_new_campaign())
+        save_campaign_state(campaign)
+    if not CHARACTERS_PATH.exists():
+        with open(CHARACTERS_PATH, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+    if not CAMPAIGN_JSON_PATH.exists():
+        campaign = load_campaign_state()
+        if campaign:
+            campaign_json = {
+                "name": campaign["name"],
+                "main_story": campaign["main_story"],
+                "adventures": [
+                    {
+                        "name": adv.get("name", ""),
+                        "summary": adv.get("summary", ""),
+                        "description": adv.get("summary", "")
+                    } for adv in campaign.get("adventures", [])
+                ],
+                "current_adventure": campaign.get("current_adventure", 0),
+                "campaign_started": campaign.get("campaign_started", False)
+            }
+            save_campaign_json(campaign_json)
 
     # At the end of init_bot, start the bot and block the main thread
     bot.run(discord_token)

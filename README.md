@@ -1,69 +1,86 @@
-# LLMDriven Co-Op Game
+# LLM-Driven Co-Op Game Server
 
-A cooperative game prototype powered by Large Language Models (LLMs). Players interact with the game world and each other through natural language, with the LLM driving game logic, NPC behavior, and dynamic storytelling.
+This project is a Discord-based, AI-powered tabletop RPG engine. It uses a Large Language Model (LLM) to act as the Game Master (GM), generating story, encounters, and world content dynamically. The system is designed for collaborative, co-op play, with a focus on narrative-driven campaigns and DM/LLM co-creation.
 
 ## Features
 
-- Multiplayer co-op gameplay
-- LLM-driven NPCs and world events
-- Natural language command interface
-- Modular and extensible game logic
+- **Discord Bot**: Players interact with the game via Discord commands and chat.
+- **LLM Game Master**: The LLM generates campaign stories, adventures, NPCs, and world descriptions.
+- **Session Zero**: Players create characters in a guided onboarding phase.
+- **Campaign State Machine**: The bot tracks campaign phases: pre-session zero, session zero, campaign started, and adventure running.
+- **Adventure Summaries**: Each campaign is scaffolded with 3-5 short adventure summaries, which are expanded into full adventures as the campaign progresses.
+- **Image Generation**: Room and world images are generated using Stable Diffusion WebUI and sent to Discord.
+- **DM/LLM Collaboration**: DMs can provide campaign and adventure outlines to guide the LLM.
+- **Extensible Commands**: Modular command system for rolling, moving, shopping, and more.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18+ recommended)
-- npm or yarn
+- Python 3.10+
+- Discord bot token
+- [Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) running locally for image generation (API enabled)
+- Ollama or compatible LLM server for story generation
 
-### Installation
+### Setup
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/LLMDriven-Co-Op-game.git
-   cd LLMDriven-Co-Op-game
-   ```
+1. Clone this repository.
 2. Install dependencies:
+   ```sh
+   pip install -r requirements.txt
    ```
-   npm install
+3. Create a `.env` file with your Discord bot token and other settings:
+   ```env
+   DISCORD_TOKEN=your_token_here
+   DISCORD_CHANNEL=your_channel_id
+   OLLAMA_HOST=http://localhost:11434
+   OLLAMA_MODEL=deepseek
    ```
-3. Configure environment variables:
-   - Create a `.env` file in the project root with the following content:
-     ```
-     OPENROUTER_API_KEY=''
-     ```
-   - **Do not hardcode API keys in the source code.** Always use environment variables for sensitive information.
+4. (Optional) Add your own campaign or adventure outlines as Markdown files in `example_campaigns/` or `example_adventures/`.
+5. Run the server:
+   ```sh
+   python run_server.py
+   ```
 
-### Running the Game
+## How It Works
 
-Start the development server:
-```
-npm run dev
-```
-or build and run:
-```
-npm run build
-npm start
-```
+- On first run, the bot creates a campaign (inspired by your example files if present) and enters Session Zero for character creation.
+- Players create characters via DM with the bot.
+- The DM starts the campaign with `!startcampaign` in the Discord channel.
+- The campaign is divided into adventures, each with a summary. The LLM expands these into full adventures as the game progresses.
+- Use `!startadventure` to begin the next adventure when ready.
+- The bot manages world state, player actions, and generates images for locations.
 
-Access the game via your browser at `http://localhost:3000`.
+## Key Commands
 
-## Usage
+- `!startcampaign` — Start the campaign after all players have created characters.
+- `!startadventure` — Begin the next adventure.
+- `!move <destination>` — Move to a new location.
+- `!roll` — Roll dice.
+- `!buy`, `!sell`, `!shop` — Shop commands.
+- `!equip`, `!equipment` — Manage gear.
+- `!players` — List current players.
+- `!help` — Show help.
 
-- Join or create a game session.
-- Interact with the world and other players using natural language.
-- The LLM interprets commands and advances the story dynamically.
+## File Structure
 
-## Project Structure
+- `run_server.py` — Main entry point.
+- `src/server/discord_bot.py` — Discord bot and game logic.
+- `src/server/commands/` — Modular command handlers.
+- `db/` — Persistent game state (campaign, characters, rooms, images).
+- `example_campaigns/`, `example_adventures/` — Example campaign/adventure outlines for the LLM.
 
-- `/src` - Main source code (game logic, server, client)
-- `/public` - Static assets
-- `/docs` - Documentation
+## Customization
 
-## Contributing
+- Add or edit Markdown files in `example_campaigns/` or `example_adventures/` to guide the LLM's campaign and adventure generation.
+- Edit `campaign.json` to provide your own adventure summaries or descriptions.
 
-Contributions are welcome! Please open issues or submit pull requests.
+## Troubleshooting
+
+- **Images not showing up?** Ensure Stable Diffusion WebUI is running with the API enabled and the bot has permission to send files in your Discord channel.
+- **LLM not responding?** Check your Ollama/LLM server is running and accessible.
+- **Bot not responding to commands?** Check your `.env` file and Discord permissions.
 
 ## License
 
-MIT License
+MIT
