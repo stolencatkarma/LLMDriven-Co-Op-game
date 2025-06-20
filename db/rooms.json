@@ -1,8 +1,0 @@
-{
-  "town_square": {
-    "description": "Welcome, adventurers! You find yourselves standing at the edge of the ancient Whisperwood. Shadows creep between the towering pines and oaks, their branches gnarled and draped with moss. The air is thick with mist, clinging to the ground and smelling faintly of damp earth and something\u2026 metallic. An abandoned village, Oakhaven, lies just beyond the woods, its buildings weathered and partially collapsed. A crudely painted sign, barely legible, reads \u201cOakhaven \u2013 Beware.\u201d\n\nYou are accompanied by Elara Meadowlight, a half-elf ranger; Kael Stonehand, a dwarf warrior; and Zephyr Quickfoot, a gnome rogue.\n\nA chill wind rustles the leaves, and you hear a faint, mournful cry carried on the breeze. \n\nWhat do you do?\n",
-    "image": "C:\\dev\\LLMDriven Co-Op game\\db\\worldImages\\town_square.png",
-    "exits": [],
-    "previous": null
-  }
-}

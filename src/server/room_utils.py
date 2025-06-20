@@ -37,11 +37,12 @@ def extract_exits_from_dm(dm_text):
     if not dm_text:
         return []
     exits = []
-    for line in dm_text.splitlines():
-        match = re.match(r"(?i)(?:obvious )?exits?:\s*(.*)", line)
-        if match:
-            exits = [e.strip() for e in match.group(1).split(",") if e.strip()]
-            break
+    # Find all lines that start with 'Exits:' (case-insensitive)
+    matches = re.findall(r"(?im)^exits?:\s*(.*)$", dm_text)
+    if matches:
+        # Use the last Exits line found
+        exits_line = matches[-1]
+        exits = [e.strip() for e in exits_line.split(",") if e.strip() and e.strip().lower() != 'none']
     return exits
 
 # These globals must be set by the main server module:

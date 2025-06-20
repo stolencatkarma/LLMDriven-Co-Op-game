@@ -18,6 +18,11 @@ players.
 
 **IMPORTANT:** Your entire reply (including formatting) must be 2000 characters or fewer to fit in a Discord message.
 
+**AT THE END OF EVERY RESPONSE:**
+- Always include a line in the format: Exits: exit1, exit2, exit3 (or Exits: None if there are no exits).
+- The exits should be a comma-separated list of all available directions, places, or paths the players can take from the current location.
+- This line must be the last line of your response, and must always start with 'Exits:'.
+
 As the DM, you must:
 
 1. **Be Smart:**
@@ -51,14 +56,6 @@ in the game.
 3. Developing NPCs who react dynamically to player actions.
 4. Introducing unexpected twists and turns in the story.
 5. Balancing combat encounters with descriptive storytelling.
-
----
-
-**Example of How the DM Might Begin:**
-
-"Welcome, adventurers! You find yourselves standing at the edge of the ancient forest, shadows creeping between
-the towering trees. The air is thick with mist, and an eerie silence hangs over the land. A village lies just
-beyond the woods, but rumors say it has been abandoned after a strange curse began to spread. What do you do?"
 """
 
 async def get_llm_response(prompt: str, ollama_host: str, ollama_model: str) -> str:
