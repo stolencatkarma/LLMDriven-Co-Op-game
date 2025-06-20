@@ -319,10 +319,25 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 await message.channel.send("The campaign setup is not complete yet. Please wait for the DM to begin Session Zero and character creation.")
                 return
             if state == 'session_zero':
-                await guide_character_creation(message.author)
+                # Allow any player who has created a character to ask questions by mentioning the bot
+                content = message.content.strip()
+                bot_mention = bot.user.mention if bot.user else None
+                mentioned = False
+                if bot_mention and bot_mention in content:
+                    mentioned = True
+                elif bot.user and bot.user.name.lower() in content.lower():
+                    mentioned = True
+                if user_id not in characters:
+                    await guide_character_creation(message.author)
+                    return
+                if content.startswith('!'):
+                    await handle_command(message, content)
+                elif mentioned:
+                    await handle_session_zero_question(message)
+                else:
+                    # Remain silent, let players chat among themselves
+                    pass
                 return
-            await message.channel.send("Character creation is only allowed during Session Zero.")
-            return
         user_id = str(message.author.id)
         if state == 'pre_session_zero':
             await message.channel.send("The campaign setup is not complete yet. Please wait for the DM to begin Session Zero and character creation.")
