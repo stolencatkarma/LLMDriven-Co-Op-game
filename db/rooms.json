@@ -1,6 +1,6 @@
 {
   "town_square": {
-    "description": "The Dungeon Master is silent due to an error.",
+    "description": "The mist clings to your boots, smelling faintly of damp earth and something else... something almost metallic. You\u2019ve been traveling for a few days, following a worn path that disappears quickly into the trees. The sunlight barely penetrates the canopy, casting the forest floor in an unsettling twilight. You notice a small, weathered wooden signpost leaning against a moss-covered boulder, almost completely obscured by lichen. The sign is barely legible, but you can make out the words \u201cWillow Creek\u201d and \u201cBeware.\u201d  A palpable sense of unease settles over you, and the silence feels\u2026 watchful. You hear the distant call of a bird, but it\u2019s a lonely, unsettling sound.\n\nWhat do you do?",
     "image": "C:\\dev\\LLMDriven Co-Op game\\db\\worldImages\\town_square.png",
     "exits": [],
     "previous": null

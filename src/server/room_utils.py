@@ -34,6 +34,8 @@ def save_rooms_db():
         json.dump(rooms_db, f, indent=2)
 
 def extract_exits_from_dm(dm_text):
+    if not dm_text:
+        return []
     exits = []
     for line in dm_text.splitlines():
         match = re.match(r"(?i)(?:obvious )?exits?:\s*(.*)", line)

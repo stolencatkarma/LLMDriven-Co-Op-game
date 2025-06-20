@@ -244,6 +244,22 @@ async def get_llm_response(prompt, prev_room=None):
                     "stream": False
                 }
             )
+            # --- Add this block to extract and return the LLM's reply ---
+            if response.status_code == 200:
+                data = response.json()
+                # Try to get the response text from common keys
+                if "response" in data:
+                    return data["response"]
+                elif "message" in data:
+                    return data["message"]
+                elif "text" in data:
+                    return data["text"]
+                else:
+                    print("[Bot] LLM response JSON did not contain expected keys.")
+                    return ""
+            else:
+                print(f"[Bot] Ollama returned status {response.status_code}: {response.text}")
+                return ""
     except Exception as e:
         print("[Bot] Ollama chat failed:", e)
         return "The Dungeon Master is silent due to an error."
@@ -393,10 +409,17 @@ async def on_message(message):
             print(f"[DEBUG] Saved new room: {world_state['location']}")
 
         # --- Remove <think>...</think> blocks from server_message ---
+        # Before using re.sub, ensure server_message is a string
+        if not isinstance(server_message, str):
+            server_message = str(server_message) if server_message is not None else ""
         server_message_clean = re.sub(r"<think>.*?</think>", "", server_message, flags=re.DOTALL).strip()
 
-        # Discord message content must be <= 2000 characters
-        reply = f"**DM:** {server_message_clean if server_message_clean else '[No response from LLM]'}"
+        # If the LLM returned nothing, ensure reply is always '[No response from LLM]'
+        if not server_message_clean:
+            reply = "**DM:** [No response from LLM]"
+        else:
+            reply = f"**DM:** {server_message_clean}"
+
         # Replace @user_id with @username in the reply
         reply = replace_mentions_with_handles(reply, message)
         # Always append exits at the end
