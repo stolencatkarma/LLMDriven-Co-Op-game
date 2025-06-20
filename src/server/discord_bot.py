@@ -479,7 +479,10 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 msg = f"**Resuming Adventure:** {adventure['name']}\n{adventure['summary']}"
         channel = bot.get_channel(int(discord_channel))
         if channel:
-            await channel.send(msg)
+            # Send long messages in chunks of 2000 characters or less
+            max_len = 2000
+            for i in range(0, len(msg), max_len):
+                await channel.send(msg[i:i+max_len])
         world_msg = f"**Current Location:** {world_state['location']}\n\n{world_state['description']}"
         image_path = world_state.get("image")
         if not image_path:
