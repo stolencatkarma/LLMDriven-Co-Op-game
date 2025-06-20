@@ -110,6 +110,11 @@ def init_bot(
 
     async def guide_character_creation(user):
         dm = await user.create_dm()
+        
+        # World/setting intro for the player
+        await dm.send("""
+Welcome to the campaign! All adventures take place in and around a sprawling Mega City and its surrounding wasteland. The Mega City is a towering, neon-lit metropolis filled with advanced technology, cybernetic enhancements, powerful corporations, and a stark divide between rich and poor. Outside the city lies a dangerous wasteland of ruins, mutants, and lawless zones. Magic is rare or replaced by psionics and advanced science. Please create a character that fits this setting (e.g., cybernetics, hacking, futuristic weapons, etc).
+""")
         await dm.send("Let's create your character! What is your character's name?")
         def check(m):
             return m.author == user and isinstance(m.channel, discord.DMChannel)
@@ -215,6 +220,17 @@ def init_bot(
             else:
                 eq_lines.append("(Empty)")
             await message.channel.send("\n".join(eq_lines))
+        elif command == 'players':
+            # List all active players (those with characters)
+            if not characters:
+                await message.channel.send("No active players yet.")
+                return
+            player_lines = ["**Active Players:**"]
+            for user_id, char in characters.items():
+                name = char.get('name') or getattr(char, 'name', None) or f"User {user_id}"
+                race_class = char.get('race_class') or f"{getattr(char, 'race', '')} {getattr(char, 'char_class', '')}".strip()
+                player_lines.append(f"- {name} ({race_class})")
+            await message.channel.send("\n".join(player_lines))
         else:
             await message.channel.send(f"Unknown command: {command}")
 
