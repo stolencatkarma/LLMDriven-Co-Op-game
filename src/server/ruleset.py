@@ -6,6 +6,11 @@ def roll_3d6():
     """Roll 3d6 and return the sum."""
     return sum(random.randint(1, 6) for _ in range(3))
 
+def roll_4d6k3():
+    """Roll 4d6, drop the lowest, and return the sum of the highest 3."""
+    rolls = [random.randint(1, 6) for _ in range(4)]
+    return sum(sorted(rolls)[1:])
+
 def ability_modifier(roll):
     """Convert a 3d6 roll to a Basic d20 modifier."""
     if roll <= 1:
@@ -54,21 +59,78 @@ BROAD_SKILLS = [
     ("Will", "WIS"),
 ]
 
+STARTING_INVENTORY = {
+    # Example: (race, class): [items]
+    ("Human", "Fighter"): ["Longsword", "Shield", "Chainmail", "Rations"],
+    ("Elf", "Wizard"): ["Quarterstaff", "Spellbook", "Robes", "Rations"],
+    ("Dwarf", "Cleric"): ["Warhammer", "Chainmail", "Holy Symbol", "Rations"],
+    ("Halfling", "Rogue"): ["Dagger", "Leather Armor", "Thieves' Tools", "Rations"],
+    # Add more as needed
+}
+
+def generate_ability_scores():
+    """Generate ability scores using 4d6k3 for each ability."""
+    abilities = {}
+    for ability in ["STR", "DEX", "CON", "INT", "WIS", "CHA"]:
+        abilities[ability] = roll_4d6k3()
+    return abilities
+
 class Character:
-    def __init__(self, name, abilities, skills=None, advantages=None, powers=None, pp=20):
+    def __init__(self, name, race, char_class, abilities=None, skills=None, advantages=None, powers=None, pp=20, inventory=None, backstory=None, equipped=None):
         """
         abilities: dict of ability modifiers, e.g. {'STR': 2, 'DEX': 1, ...}
         skills: dict of skill ranks, e.g. {'Athletics': 1, ...}
         advantages: list of feats/class abilities
         powers: list of powers
         pp: Power Points available
+        inventory: list of items carried
+        equipped: dict mapping slot (e.g., 'Weapon', 'Armor') to item name
         """
         self.name = name
-        self.abilities = abilities
+        self.race = race
+        self.char_class = char_class
+        self.abilities = abilities or generate_ability_scores()
         self.skills = skills or {skill: 0 for skill, _ in BROAD_SKILLS}
         self.advantages = advantages or []
         self.powers = powers or []
         self.pp = pp
+        self.inventory = inventory or self.get_starting_inventory()
+        self.backstory = backstory or ""
+        self.equipped = equipped or {}  # e.g., {'Weapon': 'Longsword', 'Armor': 'Chainmail'}
+
+    def get_starting_inventory(self):
+        return STARTING_INVENTORY.get((self.race, self.char_class), ["Rations", "Backpack"])
+
+    def equip_item(self, item, slot):
+        """Equip an item from inventory to a slot (e.g., 'Weapon', 'Armor')."""
+        if item not in self.inventory:
+            raise ValueError(f"Item '{item}' not in inventory.")
+        self.equipped[slot] = item
+
+    def unequip_item(self, slot):
+        """Unequip an item from a slot."""
+        if slot in self.equipped:
+            del self.equipped[slot]
+
+    def is_equipped(self, item):
+        """Check if an item is currently equipped."""
+        return item in self.equipped.values()
+
+    def get_equipped(self, slot):
+        """Get the item equipped in a given slot, or None."""
+        return self.equipped.get(slot)
+
+    def list_equipped(self):
+        """
+        Return equipped items as a dict.
+        """
+        return dict(self.equipped)
+
+    def list_inventory(self):
+        """
+        Return inventory as a list.
+        """
+        return list(self.inventory)
 
     def skill_check(self, skill, ability=None, dc=10):
         """
@@ -130,7 +192,6 @@ class Character:
         return self.skills["Will"] + self.abilities.get("WIS", 0)
 
 # Example usage:
-# char = Character("Alice", {'STR': 2, 'DEX': 1, 'CON': 0, 'INT': -1, 'WIS': 1, 'CHA': 2})
-# char.skills['Athletics'] = 1
+# char = Character("Alice", "Human", "Fighter")
 # result = char.skill_check('Athletics', dc=15)
 # print(result)

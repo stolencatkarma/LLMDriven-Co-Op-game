@@ -80,3 +80,22 @@ async def get_llm_response(prompt: str, ollama_host: str, ollama_model: str) -> 
     except Exception as e:
         print(f"LLM request failed: {e}")
         return ""
+
+async def llm_can_equip(character, item, ollama_host, ollama_model):
+    """
+    Ask the LLM if the character can equip the item, and in which slot. Returns dict:
+    { 'allowed': bool, 'slot': str or None, 'reason': str }
+    """
+    prompt = f"""
+A player wishes to equip an item. Here is their character sheet:
+Name: {character.name}\nRace: {character.race}\nClass: {character.char_class}\nAbilities: {character.abilities}\nInventory: {character.inventory}\nEquipped: {character.equipped}\n
+The player says: 'equip my {item}'.
+
+As the DM, decide if this character can equip this item, considering their race, class, and any reasonable fantasy logic. If allowed, specify the equipment slot (e.g., Weapon, Armor, Shield, etc). If not, explain why. Respond in JSON: {{ "allowed": true/false, "slot": "SlotName" or null, "reason": "short explanation" }}. Only output valid JSON."
+    """
+    response = await get_llm_response(prompt, ollama_host, ollama_model)
+    import json
+    try:
+        return json.loads(response)
+    except Exception:
+        return {"allowed": False, "slot": None, "reason": "LLM response could not be parsed."}

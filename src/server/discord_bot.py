@@ -23,30 +23,6 @@ def init_bot(
     ollama_host: str,
     ollama_model: str
 ):
-    global world_state, chat_history
-    campaign = load_campaign_state()
-    if campaign and "world_state" in campaign:
-        world_state = campaign["world_state"]
-    else:
-        world_state = {
-            "location": "Town Square",
-            "players": [],
-            "description": "🌳 **Town Square** 🌳\n\nYou are in the bustling town square.\nAdventurers gather here, and the fountain sparkles in the sunlight.",
-            "image": None
-        }
-    chat_history = []
-    
-    # Load initial game state
-    saved_location = load_game_state(base_dir)
-    if saved_location:
-        starting_room = get_room(saved_location)
-        if starting_room:
-            world_state.update({
-                "location": saved_location,
-                "description": starting_room.get("description", world_state["description"]),
-                "image": starting_room.get("image")
-            })
-
     import json
     CAMPAIGN_STATE_PATH = base_dir / "db" / "campaign_state.json"
     CHARACTERS_PATH = base_dir / "db" / "characters.json"
@@ -70,6 +46,30 @@ def init_bot(
     def save_characters(characters):
         with open(CHARACTERS_PATH, "w", encoding="utf-8") as f:
             json.dump(characters, f, indent=2)
+
+    global world_state, chat_history
+    campaign = load_campaign_state()
+    if campaign and "world_state" in campaign:
+        world_state = campaign["world_state"]
+    else:
+        world_state = {
+            "location": "Town Square",
+            "players": [],
+            "description": "🌳 **Town Square** 🌳\n\nYou are in the bustling town square.\nAdventurers gather here, and the fountain sparkles in the sunlight.",
+            "image": None
+        }
+    chat_history = []
+    
+    # Load initial game state
+    saved_location = load_game_state(base_dir)
+    if saved_location:
+        starting_room = get_room(saved_location)
+        if starting_room:
+            world_state.update({
+                "location": saved_location,
+                "description": starting_room.get("description", world_state["description"]),
+                "image": starting_room.get("image")
+            })
 
     characters = load_characters()
 
@@ -171,6 +171,50 @@ def init_bot(
                 return
             destination = ' '.join(args)
             await handle_movement(message, destination, world_state["location"], via_command=True)
+        elif command == 'equip':
+            if not args:
+                await message.channel.send("Usage: !equip <item or phrase>")
+                return
+            item_phrase = ' '.join(args)
+            user_id = str(message.author.id)
+            char = characters.get(user_id)
+            if not char:
+                await message.channel.send("Character not found.")
+                return
+            from llm_utils import llm_can_equip
+            # Call LLM to adjudicate equip request
+            equip_result = await llm_can_equip(char, item_phrase, ollama_host, ollama_model)
+            if equip_result.get('allowed'):
+                slot = equip_result.get('slot') or 'Misc'
+                try:
+                    char.equip_item(item_phrase, slot)
+                    save_characters(characters)
+                    await message.channel.send(f"{message.author.display_name} equipped {item_phrase} in {slot} slot.")
+                except Exception as e:
+                    await message.channel.send(f"Could not equip: {e}")
+            else:
+                await message.channel.send(f"Cannot equip '{item_phrase}': {equip_result.get('reason','Not allowed.')}")
+        elif command == 'equipment':
+            user_id = str(message.author.id)
+            char = characters.get(user_id)
+            if not char:
+                await message.channel.send("Character not found.")
+                return
+            equipped = char.list_equipped()
+            inventory = char.list_inventory()
+            eq_lines = [f"**Equipped Items:**"]
+            if equipped:
+                for slot, item in equipped.items():
+                    eq_lines.append(f"- {slot}: {item}")
+            else:
+                eq_lines.append("(None equipped)")
+            eq_lines.append("\n**Inventory:**")
+            if inventory:
+                for item in inventory:
+                    eq_lines.append(f"- {item}{' (equipped)' if char.is_equipped(item) else ''}")
+            else:
+                eq_lines.append("(Empty)")
+            await message.channel.send("\n".join(eq_lines))
         else:
             await message.channel.send(f"Unknown command: {command}")
 
