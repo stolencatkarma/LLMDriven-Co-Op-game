@@ -1,0 +1,214 @@
+<VSCode.Cell language="markdown">
+# Basic d20 Ruleset (Distilled)
+
+This notebook encodes the core rules and mechanics of the Basic d20 system for use in LLM-driven games. It is designed for simplicity and extensibility.
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 1. Ability Scores and Modifiers
+
+- Six abilities: Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma.
+- Each ability is represented by a modifier (typically -5 to +5).
+- Roll 3d6 for each ability to determine the modifier using the following table:
+
+| Roll (3d6) | Modifier | Descriptor      |
+|------------|----------|----------------|
+| 1 or less  | -5       | Abysmal        |
+| 2-3        | -4       | Awful          |
+| 4-5        | -3       | Bad            |
+| 6-7        | -2       | Poor           |
+| 8-9        | -1       | Mediocre       |
+| 10-11      | 0        | Fair           |
+| 12-13      | +1       | Good           |
+| 14-15      | +2       | Great          |
+| 16-17      | +3       | Exceptional    |
+| 18-19      | +4       | Amazing        |
+| 20+        | +5       | Phenomenal     |
+
+Modifiers are used directly in all checks and calculations.
+</VSCode.Cell>
+<VSCode.Cell language="python">
+import random
+
+def roll_3d6():
+    """Roll 3d6 and return the sum."""
+    return sum(random.randint(1, 6) for _ in range(3))
+
+def ability_modifier(roll):
+    """Convert a 3d6 roll to a Basic d20 modifier."""
+    if roll <= 1:
+        return -5
+    elif roll <= 3:
+        return -4
+    elif roll <= 5:
+        return -3
+    elif roll <= 7:
+        return -2
+    elif roll <= 9:
+        return -1
+    elif roll <= 11:
+        return 0
+    elif roll <= 13:
+        return 1
+    elif roll <= 15:
+        return 2
+    elif roll <= 17:
+        return 3
+    elif roll <= 19:
+        return 4
+    else:
+        return 5
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 2. Broad Skills
+
+- 20 broad skills group all traditional d20 skills and combat abilities.
+- Each skill has a default ability, but any ability can be paired with any skill at GM discretion.
+- Skills are ranked (0+), and each rank adds +1 to checks.
+
+**Broad Skills List:**
+Athletics (Dex), Awareness (Wis), Dodge (Dex), Fight (Str), Fortitude (Con), Interaction (Cha), Knowledge (Int), Languages (Int), Parry (Dex), Performance (Cha), Profession (Wis), Reflex (Dex), Science (Int), Shoot (Dex), Technology (Int), Thievery (Dex), Toughness (Con), Vehicles (Dex), Wilderness (Wis), Will (Wis)
+</VSCode.Cell>
+<VSCode.Cell language="python">
+BROAD_SKILLS = [
+    ("Athletics", "DEX"),
+    ("Awareness", "WIS"),
+    ("Dodge", "DEX"),
+    ("Fight", "STR"),
+    ("Fortitude", "CON"),
+    ("Interaction", "CHA"),
+    ("Knowledge", "INT"),
+    ("Languages", "INT"),
+    ("Parry", "DEX"),
+    ("Performance", "CHA"),
+    ("Profession", "WIS"),
+    ("Reflex", "DEX"),
+    ("Science", "INT"),
+    ("Shoot", "DEX"),
+    ("Technology", "INT"),
+    ("Thievery", "DEX"),
+    ("Toughness", "CON"),
+    ("Vehicles", "DEX"),
+    ("Wilderness", "WIS"),
+    ("Will", "WIS"),
+]
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 3. Character Creation
+
+1. Roll 3d6 for each ability, assign modifiers.
+2. Spend Power Points (PP) on ability modifiers, skill ranks, advantages, and powers.
+   - 1st level: 20 PP, max +4 ability, max 1 skill rank, max 1 power level.
+   - Ability modifier: 2 PP per +1 (physical abilities may cost more).
+   - Skill rank: 1 PP per rank.
+   - Advantage: 1 PP each.
+   - Power: variable cost.
+3. Record all stats, skills, advantages, powers, and equipment.
+</VSCode.Cell>
+<VSCode.Cell language="python">
+class Character:
+    def __init__(self, name, abilities, skills=None, advantages=None, powers=None, pp=20):
+        """
+        abilities: dict of ability modifiers, e.g. {'STR': 2, 'DEX': 1, ...}
+        skills: dict of skill ranks, e.g. {'Athletics': 1, ...}
+        advantages: list of feats/class abilities
+        powers: list of powers
+        pp: Power Points available
+        """
+        self.name = name
+        self.abilities = abilities
+        self.skills = skills or {skill: 0 for skill, _ in BROAD_SKILLS}
+        self.advantages = advantages or []
+        self.powers = powers or []
+        self.pp = pp
+
+    def skill_check(self, skill, ability=None, dc=10):
+        """
+        Roll d20 + ability modifier + skill rank vs DC.
+        If ability is None, use default for skill.
+        """
+        if skill not in self.skills:
+            raise ValueError(f"Unknown skill: {skill}")
+        if ability is None:
+            # Use default ability for skill
+            ability = dict(BROAD_SKILLS)[skill]
+        mod = self.abilities.get(ability, 0)
+        rank = self.skills[skill]
+        roll = random.randint(1, 20)
+        total = roll + mod + rank
+        return {
+            "roll": roll,
+            "modifier": mod,
+            "rank": rank,
+            "total": total,
+            "success": total >= dc
+        }
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 4. Resolution Mechanic
+
+- All checks: **d20 + Ability Modifier + Skill Rank vs. DC**
+- DCs: 0 (Very Easy), 5 (Easy), 10 (Average), 15 (Tough), 20 (Challenging), 25 (Formidable), 30 (Heroic), 35 (Superheroic), 40 (Nearly Impossible)
+- Any ability can be paired with any skill at GM discretion.
+</VSCode.Cell>
+<VSCode.Cell language="python">
+def resolve_check(character, skill, dc, ability=None):
+    """Perform a skill check and return result dict."""
+    return character.skill_check(skill, ability, dc)
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 5. Combat Statistics
+
+- Melee Attack: Fight + STR + size mod
+- Ranged Attack: Shoot + DEX + size mod + range penalty
+- Melee Defense: 10 + DEX + Parry or Armor/Shield + size mod (use higher)
+- Ranged Defense: 10 + DEX + Dodge or Armor/Shield + size mod (use higher)
+- Hit Points: Toughness Ranks × (4 + CON) + Toughness Feats × 3
+- Initiative: DEX
+- Saves: Fortitude (Fortitude + CON), Reflex (Reflex + DEX), Toughness (Toughness + CON), Will (Will + WIS)
+</VSCode.Cell>
+<VSCode.Cell language="python">
+def melee_attack_bonus(character, size_mod=0):
+    return character.skills["Fight"] + character.abilities.get("STR", 0) + size_mod
+
+def ranged_attack_bonus(character, size_mod=0, range_penalty=0):
+    return character.skills["Shoot"] + character.abilities.get("DEX", 0) + size_mod + range_penalty
+
+def melee_defense(character, armor_bonus=0, shield_bonus=0, size_mod=0):
+    parry = character.skills["Parry"]
+    dex = character.abilities.get("DEX", 0)
+    return 10 + dex + max(parry, armor_bonus + shield_bonus) + size_mod
+
+def ranged_defense(character, armor_bonus=0, shield_bonus=0, size_mod=0):
+    dodge = character.skills["Dodge"]
+    dex = character.abilities.get("DEX", 0)
+    return 10 + dex + max(dodge, armor_bonus + shield_bonus) + size_mod
+
+def hit_points(character, toughness_feats=0):
+    toughness = character.skills["Toughness"]
+    con = character.abilities.get("CON", 0)
+    return toughness * (4 + con) + toughness_feats * 3
+
+def initiative(character):
+    return character.abilities.get("DEX", 0)
+
+def fortitude_save(character):
+    return character.skills["Fortitude"] + character.abilities.get("CON", 0)
+
+def reflex_save(character):
+    return character.skills["Reflex"] + character.abilities.get("DEX", 0)
+
+def toughness_save(character):
+    return character.skills["Toughness"] + character.abilities.get("CON", 0)
+
+def will_save(character):
+    return character.skills["Will"] + character.abilities.get("WIS", 0)
+</VSCode.Cell>
+<VSCode.Cell language="markdown">
+## 6. Advancement
+
+- Players earn Power Points (PP) for roleplaying and achievements.
+- PP can be spent to improve ability modifiers, skills, advantages, or powers.
+- Maximums increase with character level as per the rules.
+
+This notebook provides the distilled rules and code for implementing Basic d20 in an LLM-driven game.
+</VSCode.Cell>

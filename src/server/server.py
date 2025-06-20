@@ -8,6 +8,8 @@ import discord
 import signal
 import sys
 import threading
+from room_utils import set_rooms_db_path
+import re  # <-- Add this line
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,6 +22,9 @@ DISCORD_CHANNEL = os.getenv("DISCORD_CHANNEL")  # Optional: restrict to a channe
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = BASE_DIR / "db" / "worldImages.json"
+
+# --- Set the path for rooms_db.json ---
+set_rooms_db_path(BASE_DIR / "db" / "rooms.json")
 
 # In-memory state
 chat_history = []
@@ -44,12 +49,10 @@ if ROOMS_DB_PATH.exists():
 else:
     rooms_db = {}
 
-def get_room_key(location):
-    return location.lower().replace(" ", "_")
-
-def get_room(location):
-    key = get_room_key(location)
-    return rooms_db.get(key)
+# --- Add import for room_utils ---
+from room_utils import (
+    get_room_key, get_room, set_room, save_rooms_db, extract_exits_from_dm
+)
 
 # Initialize world_state from the database if possible
 starting_room = get_room("Town Square")
@@ -95,29 +98,6 @@ def save_rooms_db():
     ROOMS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(ROOMS_DB_PATH, "w", encoding="utf-8") as f:
         json.dump(rooms_db, f, indent=2)
-
-def get_room_key(location):
-    return location.lower().replace(" ", "_")
-
-def get_room(location):
-    key = get_room_key(location)
-    return rooms_db.get(key)
-
-def set_room(location, data):
-    key = get_room_key(location)
-    rooms_db[key] = data
-    save_rooms_db()
-
-def extract_exits_from_dm(dm_text):
-    # Simple heuristic: look for lines starting with "Exits:" or "Obvious exits:"
-    import re
-    exits = []
-    for line in dm_text.splitlines():
-        match = re.match(r"(?i)(?:obvious )?exits?:\s*(.*)", line)
-        if match:
-            exits = [e.strip() for e in match.group(1).split(",") if e.strip()]
-            break
-    return exits
 
 async def ensure_world_image(location, description):
     images_dir = BASE_DIR / "db" / "worldImages"
@@ -255,7 +235,7 @@ async def get_llm_response(prompt, prev_room=None):
     print(f"[DEBUG] get_llm_response called with prompt: {prompt}")
     full_prompt = f"{LLM_SYSTEM_PROMPT.strip()}\n\nPlayer: {prompt.strip()}"
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=180) as client:
             response = await client.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
@@ -264,21 +244,6 @@ async def get_llm_response(prompt, prev_room=None):
                     "stream": False
                 }
             )
-            print(f"[DEBUG] Ollama LLM response status: {response.status_code}")
-            print(f"[DEBUG] Ollama LLM response headers: {dict(response.headers)}")
-            print(f"[DEBUG] Ollama LLM response content (first 500 bytes): {response.content[:500]!r}")
-            if response.status_code != 200:
-                print("[Bot] Ollama chat failed:", response.status_code, response.text)
-                return "The Dungeon Master is silent due to an error."
-            try:
-                data = response.json()
-                print(f"[DEBUG] Ollama LLM response JSON: {data}")
-                return data.get("response", "The Dungeon Master is silent.")
-            except Exception as e:
-                print(f"[Bot] Failed to parse Ollama LLM response: {e}")
-                print(f"[DEBUG] Ollama raw response text: {response.text}")
-                print(f"[DEBUG] Ollama raw response content (first 500 bytes): {response.content[:500]!r}")
-                return "The Dungeon Master is silent due to an error."
     except Exception as e:
         print("[Bot] Ollama chat failed:", e)
         return "The Dungeon Master is silent due to an error."
@@ -427,13 +392,17 @@ async def on_message(message):
             )
             print(f"[DEBUG] Saved new room: {world_state['location']}")
 
+        # --- Remove <think>...</think> blocks from server_message ---
+        server_message_clean = re.sub(r"<think>.*?</think>", "", server_message, flags=re.DOTALL).strip()
+
         # Discord message content must be <= 2000 characters
-        reply = f"**DM:** {server_message if server_message else '[No response from LLM]'}"
-        # Append exits at the end
-        if exits:
-            reply += "\n\n**Exits:** " + ", ".join(exits)
+        reply = f"**DM:** {server_message_clean if server_message_clean else '[No response from LLM]'}"
         # Replace @user_id with @username in the reply
         reply = replace_mentions_with_handles(reply, message)
+        # Always append exits at the end
+        if exits:
+            reply = reply.rstrip()
+            reply += "\n\n**Exits:** " + ", ".join(exits)
         if len(reply) > 2000:
             print(f"[DEBUG] Reply too long ({len(reply)} chars), truncating for Discord.")
             reply = reply[:1997] + "..."
@@ -473,3 +442,4 @@ if __name__ == "__main__":
         print("[Bot] DISCORD_TOKEN is not set in the environment.")
     else:
         bot.run(DISCORD_TOKEN)
+        print(f"[Bot] Failed to send message or image: {e}")

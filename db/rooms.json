@@ -1,13 +1,8 @@
 {
   "town_square": {
-    "description": "🌳 **Town Square** 🌳\n\nYou stand in the heart of a bustling, friendly town. Colorful banners hang between timbered buildings, and the air is filled with the sounds of merchants hawking their wares, children laughing, and the distant clang of a blacksmith's hammer. Stalls line the cobblestone streets, offering everything from fresh produce to adventuring gear. Townsfolk greet you with warm smiles, and a large fountain bubbles cheerfully at the center of the square.",
-    "image": null,
-    "exits": [
-      "Market Street",
-      "Blacksmith",
-      "Tavern",
-      "Town Gate"
-    ],
+    "description": "The Dungeon Master is silent due to an error.",
+    "image": "C:\\dev\\LLMDriven Co-Op game\\db\\worldImages\\town_square.png",
+    "exits": [],
     "previous": null
   }
 }
