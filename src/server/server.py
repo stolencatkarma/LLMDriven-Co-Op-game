@@ -54,11 +54,26 @@ from room_utils import (
     get_room_key, get_room, set_room, save_rooms_db, extract_exits_from_dm
 )
 
-# Initialize world_state from the database if possible
-starting_room = get_room("Town Square")
-if starting_room:
+GAME_STATE_PATH = BASE_DIR / "db" / "game_state.json"
+
+def save_game_state():
+    GAME_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(GAME_STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump({"location": world_state["location"]}, f)
+
+def load_game_state():
+    if GAME_STATE_PATH.exists():
+        with open(GAME_STATE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("location")
+    return None
+
+# --- Initialize world_state from persistent game_state if available ---
+saved_location = load_game_state()
+if saved_location and get_room(saved_location):
+    starting_room = get_room(saved_location)
     world_state = {
-        "location": "Town Square",
+        "location": saved_location,
         "players": [],
         "description": starting_room.get("description", "🌳 **Town Square** 🌳\n\nYou are in the bustling town square.\nAdventurers gather here, and the fountain sparkles in the sunlight."),
         "image": starting_room.get("image")
@@ -357,46 +372,101 @@ async def on_message(message):
     exits = current_room.get("exits", []) if current_room else []
     new_location = None
     for exit_name in exits:
-        # Simple matching: if exit name is in the message, treat as movement
         if exit_name.lower() in content.lower():
             new_location = exit_name
             break
 
+    if not new_location:
+        match = re.search(r"\bgo (\w+)\b", content.lower())
+        if match:
+            direction = match.group(1).capitalize()
+            new_location = direction
+
     if new_location:
         print(f"[DEBUG] Detected movement to: {new_location}")
+        prev_location_key = get_room_key(prev_location)
+        new_location_key = get_room_key(new_location)
         world_state["location"] = new_location
-        # Optionally, update description if the new room exists
+        save_game_state()  # <-- Persist the new location
         next_room = get_room(new_location)
         if next_room:
             world_state["description"] = next_room.get("description", world_state["description"])
             world_state["image"] = next_room.get("image")
         else:
-            # Reset description for new room; will be generated below
+            # --- Always create a new room with a description from the LLM and an exit back to the previous room ---
             world_state["description"] = ""
             world_state["image"] = None
+            # Generate new room description
+            server_message = await get_llm_response(f"You travel to {new_location}.", prev_room=prev_room_data)
+            chat_history.append({"sender": "DM", "message": server_message})
+            # Generate image for new room
+            image_path = await ensure_world_image(new_location, server_message)
+            world_state["image"] = image_path
+            # Exits: add an exit back to the previous room
+            exits = [prev_location] if prev_location else []
+            # Try to extract more exits from the LLM response
+            extracted_exits = extract_exits_from_dm(server_message)
+            for e in extracted_exits:
+                if e and e != prev_location and e not in exits:
+                    exits.append(e)
+            # Save new room to DB with all required fields
+            set_room(
+                new_location,
+                {
+                    "description": server_message,
+                    "image": image_path,
+                    "exits": exits,
+                    "previous": prev_location_key if prev_location_key != new_location_key else None
+                }
+            )
+            print(f"[DEBUG] Created new room: {new_location} with exits: {exits}")
+            # Update world_state description for reply
+            world_state["description"] = server_message
 
     async with message.channel.typing():
-        # Check if this location already has a room entry
         room_data = get_room(world_state["location"])
         if room_data:
             server_message = room_data["description"]
             image_path = room_data.get("image")
             exits = room_data.get("exits", [])
+            if not exits:
+                exits = extract_exits_from_dm(server_message)
+                if exits:
+                    set_room(
+                        world_state["location"],
+                        {
+                            "description": server_message,
+                            "image": image_path,
+                            "exits": exits,
+                            "previous": room_data.get("previous")
+                        }
+                    )
+            if not image_path or not os.path.exists(image_path):
+                image_path = await ensure_world_image(world_state["location"], server_message)
+                world_state["image"] = image_path
+                set_room(
+                    world_state["location"],
+                    {
+                        "description": server_message,
+                        "image": image_path,
+                        "exits": exits,
+                        "previous": room_data.get("previous")
+                    }
+                )
             print(f"[DEBUG] Loaded existing room: {world_state['location']}")
         else:
-            # If no description, use a generic one for new locations
             if not world_state["description"]:
                 world_state["description"] = f"You arrive at {world_state['location']}."
             server_message = await get_llm_response(content, prev_room=prev_room_data)
             chat_history.append({"sender": "DM", "message": server_message})
 
+            # --- Extract exits from DM output for new room initialization ---
+            exits = extract_exits_from_dm(server_message)
             # Always (re)generate the image for the current location/description
             image_path = await ensure_world_image(world_state["location"], world_state["description"])
             world_state["image"] = image_path
 
-            # Extract exits from DM output
-            exits = extract_exits_from_dm(server_message)
-            # Save new room to DB
+            # Save new room to DB with exits initialized
             set_room(
                 world_state["location"],
                 {
@@ -409,7 +479,6 @@ async def on_message(message):
             print(f"[DEBUG] Saved new room: {world_state['location']}")
 
         # --- Remove <think>...</think> blocks from server_message ---
-        # Before using re.sub, ensure server_message is a string
         if not isinstance(server_message, str):
             server_message = str(server_message) if server_message is not None else ""
         server_message_clean = re.sub(r"<think>.*?</think>", "", server_message, flags=re.DOTALL).strip()
@@ -422,20 +491,21 @@ async def on_message(message):
 
         # Replace @user_id with @username in the reply
         reply = replace_mentions_with_handles(reply, message)
+
         # Always append exits at the end
         if exits:
             reply = reply.rstrip()
             reply += "\n\n**Exits:** " + ", ".join(exits)
-        if len(reply) > 2000:
-            print(f"[DEBUG] Reply too long ({len(reply)} chars), truncating for Discord.")
-            reply = reply[:1997] + "..."
 
+        # --- Send image first, then the reply (exits always at end) ---
         try:
-            # Always send a message, even if image_path is None or image is missing
             if image_path and os.path.exists(image_path):
+                # Send the image first, centered, then the reply as a separate message
                 with open(image_path, "rb") as img_fp:
                     discord_file = discord.File(img_fp, filename=os.path.basename(image_path))
-                    await message.channel.send(reply, file=discord_file)
+                    # Center the image using Discord's markdown (centered effect is not guaranteed, but blank lines help visually)
+                    await message.channel.send("\n", file=discord_file)
+                await message.channel.send(reply)
             else:
                 await message.channel.send(reply)
             print("[DEBUG] Sent reply to channel.")
