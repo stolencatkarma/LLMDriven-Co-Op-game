@@ -1,4 +1,6 @@
 import random
+import json
+from pathlib import Path
 
 # --- Basic d20 Ruleset (Distilled) ---
 
@@ -68,6 +70,11 @@ STARTING_INVENTORY = {
     # Add more as needed
 }
 
+# Load shop items from tracked gear.json
+GEAR_JSON_PATH = Path(__file__).parent / "gear" / "gear.json"
+with open(GEAR_JSON_PATH, "r", encoding="utf-8") as f:
+    SHOP_ITEMS = json.load(f)
+
 def generate_ability_scores():
     """Generate ability scores using 4d6k3 for each ability."""
     abilities = {}
@@ -78,6 +85,8 @@ def generate_ability_scores():
 class Character:
     def __init__(self, name, race, char_class, abilities=None, skills=None, advantages=None, powers=None, pp=20, inventory=None, backstory=None, equipped=None):
         """
+        DYSTOPIAN SCI-FI FUTURE SETTING: The world is a grim, high-tech society with advanced technology, cybernetic enhancements, and powerful corporations. Magic is rare or replaced by psionics and advanced science. Please create your character to fit this setting (e.g., cybernetics, hacking, futuristic weapons, etc).
+
         abilities: dict of ability modifiers, e.g. {'STR': 2, 'DEX': 1, ...}
         skills: dict of skill ranks, e.g. {'Athletics': 1, ...}
         advantages: list of feats/class abilities

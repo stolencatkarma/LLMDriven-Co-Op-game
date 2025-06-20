@@ -1,0 +1,275 @@
+[
+    {
+        "name": "Plasma Pistol",
+        "type": "Weapon",
+        "store_price": 500,
+        "black_market_price": 2000,
+        "description": "A compact energy sidearm that fires superheated plasma bolts. Standard issue for corporate security. Deals moderate energy damage."
+    },
+    {
+        "name": "Laser Rifle",
+        "type": "Weapon",
+        "store_price": 1200,
+        "black_market_price": 4000,
+        "description": "A long-range rifle that fires focused laser beams. High accuracy and armor penetration."
+    },
+    {
+        "name": "Mono-molecular Blade",
+        "type": "Weapon",
+        "store_price": 800,
+        "black_market_price": 2500,
+        "description": "A sword with an edge only one molecule thick. Can cut through most materials."
+    },
+    {
+        "name": "Stun Baton",
+        "type": "Weapon",
+        "store_price": 350,
+        "black_market_price": 1200,
+        "description": "A melee baton that delivers a powerful electric shock, capable of incapacitating targets."
+    },
+    {
+        "name": "Nano-weave Vest",
+        "type": "Armor",
+        "store_price": 700,
+        "black_market_price": 2200,
+        "description": "A lightweight vest reinforced with nanofibers. Provides protection against small arms fire."
+    },
+    {
+        "name": "Powered Exosuit",
+        "type": "Armor",
+        "store_price": 3000,
+        "black_market_price": 9000,
+        "description": "A full-body powered suit that enhances strength and provides heavy protection."
+    },
+    {
+        "name": "Stealth Cloak",
+        "type": "Armor",
+        "store_price": 2000,
+        "black_market_price": 6000,
+        "description": "A cloak with active camouflage technology, making the wearer nearly invisible."
+    },
+    {
+        "name": "Medkit",
+        "type": "Gear",
+        "store_price": 100,
+        "black_market_price": 350,
+        "description": "A portable kit containing medical supplies for treating injuries and stabilizing wounds."
+    },
+    {
+        "name": "Energy Cell",
+        "type": "Gear",
+        "store_price": 50,
+        "black_market_price": 200,
+        "description": "A compact battery used to power energy weapons and devices."
+    },
+    {
+        "name": "Holo-Projector",
+        "type": "Gear",
+        "store_price": 400,
+        "black_market_price": 1500,
+        "description": "A device that projects realistic 3D holograms for communication or distraction."
+    },
+    {
+        "name": "Hacking Rig",
+        "type": "Gear",
+        "store_price": 900,
+        "black_market_price": 3000,
+        "description": "A portable computer with specialized tools for bypassing electronic security."
+    },
+    {
+        "name": "Rations",
+        "type": "Gear",
+        "store_price": 20,
+        "black_market_price": 60,
+        "description": "Packaged food and water for survival in hostile environments."
+    },
+    {
+        "name": "Backpack",
+        "type": "Gear",
+        "store_price": 30,
+        "black_market_price": 100,
+        "description": "A sturdy pack for carrying equipment and supplies."
+    },
+    {
+        "name": "Commlink",
+        "type": "Gear",
+        "store_price": 150,
+        "black_market_price": 500,
+        "description": "A secure personal communicator for voice, text, and data."
+    },
+    {
+        "name": "EMP Grenade",
+        "type": "Gear",
+        "store_price": 600,
+        "black_market_price": 2200,
+        "description": "A grenade that emits an electromagnetic pulse, disabling electronics in a small radius."
+    },
+    {
+        "name": "Jet Boots",
+        "type": "Gear",
+        "store_price": 2500,
+        "black_market_price": 8000,
+        "description": "Boots with built-in thrusters for short bursts of flight or rapid movement."
+    },
+    {
+        "name": "Synthetic ID",
+        "type": "Misc",
+        "store_price": 400,
+        "black_market_price": 1600,
+        "description": "A forged identity chip for bypassing security checks and accessing restricted areas."
+    },
+    {
+        "name": "Universal Translator",
+        "type": "Misc",
+        "store_price": 350,
+        "black_market_price": 1200,
+        "description": "A device that translates spoken and written language in real time."
+    },
+    {
+        "name": "Portable Shelter",
+        "type": "Misc",
+        "store_price": 200,
+        "black_market_price": 700,
+        "description": "A compact shelter that expands to provide protection from the elements."
+    },
+    {
+        "name": "Drone Companion",
+        "type": "Misc",
+        "store_price": 1800,
+        "black_market_price": 6000,
+        "description": "A small autonomous drone that can assist with surveillance, repairs, or combat."
+    },
+    {
+        "name": "Omni-tool",
+        "type": "Engineer Gear",
+        "store_price": 600,
+        "black_market_price": 2200,
+        "description": "A multi-purpose handheld device for repairs, diagnostics, and interfacing with technology."
+    },
+    {
+        "name": "Repair Drone",
+        "type": "Engineer Gear",
+        "store_price": 1200,
+        "black_market_price": 4000,
+        "description": "A drone specialized in repairing machinery and electronic systems."
+    },
+    {
+        "name": "Welding Torch",
+        "type": "Engineer Gear",
+        "store_price": 250,
+        "black_market_price": 900,
+        "description": "A portable torch for cutting and welding metal. Useful for repairs and breaching obstacles."
+    },
+    {
+        "name": "Smart Goggles",
+        "type": "Engineer Gear",
+        "store_price": 300,
+        "black_market_price": 1100,
+        "description": "Wearable goggles with augmented reality overlays and diagnostic tools."
+    },
+    {
+        "name": "Nanite Canister",
+        "type": "Engineer Gear",
+        "store_price": 900,
+        "black_market_price": 3200,
+        "description": "A canister containing programmable nanites for repairs or sabotage."
+    },
+    {
+        "name": "Circuit Patch Kit",
+        "type": "Engineer Gear",
+        "store_price": 80,
+        "black_market_price": 300,
+        "description": "A kit with spare parts and tools for quick electronic repairs."
+    },
+    {
+        "name": "Portable Fabricator",
+        "type": "Engineer Gear",
+        "store_price": 2200,
+        "black_market_price": 7500,
+        "description": "A portable 3D printer for creating tools, parts, or small devices on demand."
+    },
+    {
+        "name": "Sensor Array",
+        "type": "Engineer Gear",
+        "store_price": 700,
+        "black_market_price": 2500,
+        "description": "A suite of sensors for detecting heat, motion, radiation, and other phenomena."
+    },
+    {
+        "name": "EMP Shielding Module",
+        "type": "Engineer Gear",
+        "store_price": 1000,
+        "black_market_price": 3500,
+        "description": "A module that protects devices and vehicles from EMP attacks."
+    },
+    {
+        "name": "Cyberdeck",
+        "type": "Hacker Tool",
+        "store_price": 1500,
+        "black_market_price": 5000,
+        "description": "A powerful portable computer for hacking networks and systems. Essential for netrunners."
+    },
+    {
+        "name": "ICE Breaker",
+        "type": "Hacker Tool",
+        "store_price": 900,
+        "black_market_price": 3200,
+        "description": "A software or device designed to defeat Intrusion Countermeasures Electronics (ICE)."
+    },
+    {
+        "name": "Signal Jammer",
+        "type": "Hacker Tool",
+        "store_price": 400,
+        "black_market_price": 1400,
+        "description": "A device that disrupts wireless communications in a given area."
+    },
+    {
+        "name": "Data Spike",
+        "type": "Hacker Tool",
+        "store_price": 250,
+        "black_market_price": 900,
+        "description": "A malicious program or device used to damage or disrupt enemy systems."
+    },
+    {
+        "name": "Cloaking Chip",
+        "type": "Hacker Tool",
+        "store_price": 1200,
+        "black_market_price": 4000,
+        "description": "A chip that masks the user's digital presence, making them harder to trace."
+    },
+    {
+        "name": "Neural Interface Jack",
+        "type": "Hacker Tool",
+        "store_price": 2000,
+        "black_market_price": 7000,
+        "description": "A cybernetic implant that allows direct brain-to-computer interfacing."
+    },
+    {
+        "name": "Spoof Card",
+        "type": "Hacker Tool",
+        "store_price": 350,
+        "black_market_price": 1200,
+        "description": "A device that fakes credentials or signals to bypass security."
+    },
+    {
+        "name": "Black ICE Injector",
+        "type": "Hacker Tool",
+        "store_price": 2200,
+        "black_market_price": 8000,
+        "description": "A tool for deploying lethal countermeasures in cyberspace."
+    },
+    {
+        "name": "Encrypted Datapad",
+        "type": "Hacker Tool",
+        "store_price": 600,
+        "black_market_price": 2200,
+        "description": "A secure, tamper-resistant device for storing sensitive data."
+    },
+    {
+        "name": "Wireless Tap",
+        "type": "Hacker Tool",
+        "store_price": 300,
+        "black_market_price": 1100,
+        "description": "A device for intercepting and monitoring wireless communications."
+    }
+]
