@@ -8,6 +8,11 @@ from llm_utils import get_llm_response
 from game_state import save_game_state, load_game_state
 from room_utils import get_room, set_room, extract_exits_from_dm
 from image_utils import ensure_world_image
+import importlib
+from utils.discord_utils import replace_mentions, get_user_mention
+from utils.message_utils import send_dm_response
+from utils.movement_utils import detect_movement
+from utils.world_utils import update_world_state_from_room
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -162,75 +167,31 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         else:
             await handle_player_message(message)
 
+    command_map = {
+        'roll': ('commands.roll', 'roll_command'),
+        'move': ('commands.move', 'move_command'),
+        'equip': ('commands.equip', 'equip_command'),
+        'equipment': ('commands.equipment', 'equipment_command'),
+        'players': ('commands.players', 'players_command'),
+    }
+    
     async def handle_command(message, content):
         parts = content[1:].split()
         command = parts[0].lower() if parts else ''
         args = parts[1:]
-        if command == 'roll':
-            import random
-            result = random.randint(1, 20)
-            await message.channel.send(f"🎲 {message.author.display_name} rolled a d20: **{result}**")
-        elif command == 'move':
-            if not args:
-                await message.channel.send("Usage: !move <destination>")
-                return
-            destination = ' '.join(args)
-            await handle_movement(message, destination, world_state["location"], via_command=True)
-        elif command == 'equip':
-            if not args:
-                await message.channel.send("Usage: !equip <item or phrase>")
-                return
-            item_phrase = ' '.join(args)
-            user_id = str(message.author.id)
-            char = characters.get(user_id)
-            if not char:
-                await message.channel.send("Character not found.")
-                return
-            from llm_utils import llm_can_equip
-            # Call LLM to adjudicate equip request
-            equip_result = await llm_can_equip(char, item_phrase, ollama_host, ollama_model)
-            if equip_result.get('allowed'):
-                slot = equip_result.get('slot') or 'Misc'
-                try:
-                    char.equip_item(item_phrase, slot)
-                    save_characters(characters)
-                    await message.channel.send(f"{message.author.display_name} equipped {item_phrase} in {slot} slot.")
-                except Exception as e:
-                    await message.channel.send(f"Could not equip: {e}")
-            else:
-                await message.channel.send(f"Cannot equip '{item_phrase}': {equip_result.get('reason','Not allowed.')}")
-        elif command == 'equipment':
-            user_id = str(message.author.id)
-            char = characters.get(user_id)
-            if not char:
-                await message.channel.send("Character not found.")
-                return
-            equipped = char.list_equipped()
-            inventory = char.list_inventory()
-            eq_lines = [f"**Equipped Items:**"]
-            if equipped:
-                for slot, item in equipped.items():
-                    eq_lines.append(f"- {slot}: {item}")
-            else:
-                eq_lines.append("(None equipped)")
-            eq_lines.append("\n**Inventory:**")
-            if inventory:
-                for item in inventory:
-                    eq_lines.append(f"- {item}{' (equipped)' if char.is_equipped(item) else ''}")
-            else:
-                eq_lines.append("(Empty)")
-            await message.channel.send("\n".join(eq_lines))
-        elif command == 'players':
-            # List all active players (those with characters)
-            if not characters:
-                await message.channel.send("No active players yet.")
-                return
-            player_lines = ["**Active Players:**"]
-            for user_id, char in characters.items():
-                name = char.get('name') or getattr(char, 'name', None) or f"User {user_id}"
-                race_class = char.get('race_class') or f"{getattr(char, 'race', '')} {getattr(char, 'char_class', '')}".strip()
-                player_lines.append(f"- {name} ({race_class})")
-            await message.channel.send("\n".join(player_lines))
+        if command in command_map:
+            module_name, func_name = command_map[command]
+            mod = importlib.import_module(module_name)
+            func = getattr(mod, func_name)
+            kwargs = {
+                'characters': characters,
+                'save_characters': save_characters,
+                'ollama_host': ollama_host,
+                'ollama_model': ollama_model,
+                'handle_movement': handle_movement,
+                'world_state': world_state
+            }
+            await func(message, args, **kwargs)
         else:
             await message.channel.send(f"Unknown command: {command}")
 
@@ -277,26 +238,13 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
 
     async def process_player_action(message, content: str):
         prev_location = world_state["location"]
-        new_location = detect_movement(content, prev_location)
+        new_location = detect_movement(content, prev_location, get_room)
         if new_location:
             # Instead of calling handle_movement directly, call the !move command as if the player did
             fake_command = f"!move {new_location}"
             await handle_command(message, fake_command)
         else:
             await generate_dm_response(message, content, prev_location)
-
-    def detect_movement(content: str, current_location: str) -> Optional[str]:
-        current_room = get_room(current_location)
-        exits = current_room.get("exits", []) if current_room else []
-        
-        # Check exact exit matches first
-        for exit_name in exits:
-            if exit_name.lower() in content.lower():
-                return exit_name
-        
-        # Fallback to regex pattern
-        match = re.search(r"\bgo (\w+)\b", content.lower())
-        return match.group(1).capitalize() if match else None
 
     async def handle_movement(message, new_location: str, prev_location: str, via_command=False):
         if not via_command:
@@ -316,7 +264,7 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                     exits.append(new_location)
                     prev_room["exits"] = exits
                     set_room(prev_location, prev_room)
-            update_world_state_from_room(next_room)
+            update_world_state_from_room(world_state, next_room)
         await send_room_update(message.channel)
 
     async def create_new_room(message, new_location: str, prev_location: str):
@@ -353,10 +301,6 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             "image": image_path
         })
 
-    def update_world_state_from_room(room_data: dict):
-        world_state["description"] = room_data.get("description", world_state["description"])
-        world_state["image"] = room_data.get("image")
-
     async def generate_dm_response(message, content: str, prev_location: str):
         async with message.channel.typing():
             server_message = await get_llm_response(content, ollama_host, ollama_model)
@@ -370,33 +314,7 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             if exits:
                 room_data["exits"] = exits
                 set_room(world_state["location"], room_data)
-            await send_dm_response(message.channel, server_message, exits)
-
-    async def send_dm_response(channel, raw_message: str, exits: list):
-        clean_message = re.sub(r"", "", raw_message, flags=re.DOTALL).strip()
-        reply = f"**DM:** {replace_mentions(clean_message, channel)}"
-        if exits:
-            reply += f"\n\n**Exits:** {', '.join(exits)}"
-        else:
-            reply += "\n\n**Exits:** None"
-        image_path = world_state.get("image")
-        if image_path and Path(image_path).exists():
-            with open(image_path, "rb") as img_fp:
-                await channel.send(file=File(img_fp, Path(image_path).name))
-        await channel.send(reply)
-
-    def replace_mentions(text: str, channel) -> str:
-        if not hasattr(channel, "guild"):
-            return text
-        return re.sub(
-            r"@(\d{17,20})",
-            lambda m: get_user_mention(m.group(1), channel.guild),
-            text
-        )
-
-    def get_user_mention(user_id: str, guild) -> str:
-        user = guild.get_member(int(user_id))
-        return f"@{user.display_name}" if user else f"@{user_id}"
+            await send_dm_response(message.channel, server_message, exits, world_state, lambda t, c: replace_mentions(t, c, get_user_mention))
 
     # Start the bot
     if discord_token:
