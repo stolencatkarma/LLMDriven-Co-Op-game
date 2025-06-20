@@ -1,0 +1,31 @@
+Campaign: The Seraphim Strain
+Overall Theme: Investigation, escalating rebellion, and confronting a conspiracy. This campaign takes the Player Characters (PCs) from being nobodies in the Hab-Blocks to key figures in a city-wide crisis, teaching the LLM how to manage a narrative with rising stakes.
+
+Adventure 1: The Glimmer in the Gutter
+Concept: Street-level investigation and introduction to the core mystery.
+Description: The PCs' trusted contact in the Hab-Blocks, an old tinkerer named Elias, has gone missing. The only clue is his ransacked workshop and a strange, faintly glowing silver data chip left behind in the chaos. A local Undercity fixer named Ratchet offers to help identify the chip, but he wants a favor first: clear out a nest of mutated "Gutter-Ghouls" from his favorite smuggling tunnel. This adventure introduces the core factions and the initial breadcrumb of the conspiracy.
+LLM Focus: Running a simple "dungeon crawl" (the tunnel), roleplaying a transactional NPC (Ratchet), and setting up a compelling mystery.
+Adventure 2: A-Dub's Chop Shop
+Concept: Social maneuvering and information gathering in a high-tension neutral zone.
+Description: Ratchet identifies the chip's unique architecture as the work of "A-Dub," a reclusive and highly paranoid cybernetics artist who operates a "chop shop" for black market augments. A-Dub is known to trade information for rare tech or favors. The PCs must navigate A-Dub's heavily trapped workshop, deal with his eccentric and suspicious personality, and either persuade, trick, or perform a service for him to get him to analyze the chip's contents.
+LLM Focus: Managing a complex social encounter with a paranoid NPC, creating a non-combat environment filled with traps and skill challenges, and gating crucial information behind player choice.
+Adventure 3: The Warden's Wire
+Concept: A hacking and stealth-based mission against Aethel Corp.
+Description: A-Dub discovers the chip contains an encrypted Aethel Corp. medical file. The patient is listed as "Seraphim," and the file references a "critical contamination" at a specific Vita-Gel production facility, Med-Lab 7. He can't decrypt the file further without a specific cypher key, which he believes is updated daily on the local Warden precinct's network. The PCs must infiltrate the Warden precinct, hack into their servers to steal the key, and get out before a system-wide security sweep occurs.
+LLM Focus: Running the "Ghost in the Machine" style hacking scenario, managing physical stealth alongside digital threats, and introducing a time pressure element to increase tension.
+Adventure 4: The Med-Lab 7 Run
+Concept: Exploration and combat in a hazardous, abandoned location.
+Description: With the file decrypted, the PCs learn the horrifying truth: the "Seraphim Strain" is a failed biological agent Aethel was developing. It escaped, causing a localized outbreak in Med-Lab 7 which was brutally "sanitized" and sealed. The file suggests a master data terminal with all of the project's research data—and potentially a counter-agent formula—still exists inside. The PCs must breach the sealed lab, fight through malfunctioning robotic janitor-drones and horrific biological horrors left over from the outbreak, and reach the terminal.
+LLM Focus: Designing and describing a classic "dungeon" with environmental hazards (chemical spills, faulty wiring), varied enemies (robots and mutants), and a clear objective at the end.
+Adventure 5: The Rust-Dog Pursuit
+Concept: High-stakes vehicle combat and chase sequence.
+Description: As the PCs escape Med-Lab 7 with the research data, they trigger a silent alarm that alerts an elite Aethel recovery team. This team isn't comprised of standard Wardens; they are "Rust-Dogs," ruthless corporate contractors equipped with high-speed, weaponized pursuit vehicles. The PCs must race through the industrial outskirts and into the Ashen Wastes, using their vehicle to outmaneuver, fight off, and survive the relentless assault from the Rust-Dogs who are intent on recovering the data at any cost.
+LLM Focus: Running the "Scrap-Iron Gauntlet" style vehicle combat scenario, managing vehicle-specific rules, and creating a feeling of being hunted by a superior foe.
+Adventure 6: The Echo's Gambit
+Concept: Faction politics and preparing for the final confrontation.
+Description: The PCs now hold the single most damaging piece of evidence against Aethel Corp. They must bring it to the Echoes' leadership. This adventure is primarily social. The PCs present their findings and must persuade the disparate, bickering lieutenants within the rebellion to unify for a single, decisive strike. This involves making promises, intimidating rivals, and possibly undertaking a small side-mission for a skeptical faction leader to win their trust before the final assault can begin.
+LLM Focus: Managing a multi-NPC social encounter where player arguments and persuasion checks directly influence the resources available for the finale. This teaches the LLM to handle branching consequences based on social outcomes.
+Adventure 7: Broadcast from the Spire
+Concept: The final, multi-stage infiltration and climax.
+Description: The united rebel factions create a massive diversion across the Hab-Blocks, giving the PCs a window to infiltrate the Aethel Spire itself. Their mission is twofold: 1) Reach the central broadcast tower to transmit the "Seraphim Strain" data to the entire city. 2) Plant a virus at the Vita-Gel primary distribution hub to neutralize the sedatives in the city's supply. The Spire is a high-tech fortress patrolled by Aethel's finest guards and overseen by the very corporate executive who directed the Seraphim project. The PCs will face a final, dramatic confrontation before they can change Neo-Veridia forever.
+LLM Focus: Combining stealth, combat, and hacking into a final, climactic "dungeon." It must manage a high-stakes boss fight and be prepared to narrate a wide range of possible endings for the city based on the PCs' success or failure.

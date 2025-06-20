@@ -90,22 +90,25 @@ def init_bot(
     characters = load_characters()
 
     def get_example_adventure_descriptions():
-        example_dir = base_dir / "example_adventures"
-        adventure_files = glob.glob(str(example_dir / "*.md"))
+        example_dirs = [base_dir / "example_adventures", base_dir / "example_campaigns"]
+        adventure_files = []
+        import glob
+        for d in example_dirs:
+            adventure_files.extend(glob.glob(str(d / "*.md")))
         adventures = []
         for file_path in adventure_files:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Use the first heading and the first long paragraph as the description
                 lines = content.splitlines()
-                title = next((l.strip('# ').strip() for l in lines if l.startswith('#')), "Example Adventure")
+                title = next((l.strip('# ').strip() for l in lines if l.startswith('#') or l.lower().startswith('campaign:')), "Example Adventure")
                 # Find the first paragraph after the title
                 desc = ""
                 for i, l in enumerate(lines):
-                    if l.startswith('#'):
+                    if l.startswith('#') or l.lower().startswith('campaign:'):
                         # Find next non-empty, non-heading line
                         for l2 in lines[i+1:]:
-                            if l2.strip() and not l2.startswith('#'):
+                            if l2.strip() and not l2.startswith('#') and not l2.lower().startswith('campaign:'):
                                 desc = l2.strip()
                                 break
                         break
