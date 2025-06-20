@@ -367,13 +367,32 @@ async def on_message(message):
         world_state["players"].append(player)
     chat_history.append({"sender": player, "message": content})
 
-    # Determine if player is moving to a new room (simple heuristic: "go north", "enter cave", etc.)
-    # For a real game, you'd want a more robust parser.
+    # --- Movement logic: detect if the player wants to move to a new room ---
     prev_location = world_state["location"]
     prev_room_data = get_room(prev_location)
-    # For now, assume every message could potentially move the player.
-    # If the room already exists, reuse its data.
-    # Otherwise, generate new DM output and save it.
+
+    # Try to match a movement command to an exit in the current room
+    current_room = get_room(prev_location)
+    exits = current_room.get("exits", []) if current_room else []
+    new_location = None
+    for exit_name in exits:
+        # Simple matching: if exit name is in the message, treat as movement
+        if exit_name.lower() in content.lower():
+            new_location = exit_name
+            break
+
+    if new_location:
+        print(f"[DEBUG] Detected movement to: {new_location}")
+        world_state["location"] = new_location
+        # Optionally, update description if the new room exists
+        next_room = get_room(new_location)
+        if next_room:
+            world_state["description"] = next_room.get("description", world_state["description"])
+            world_state["image"] = next_room.get("image")
+        else:
+            # Reset description for new room; will be generated below
+            world_state["description"] = ""
+            world_state["image"] = None
 
     async with message.channel.typing():
         # Check if this location already has a room entry
@@ -384,6 +403,9 @@ async def on_message(message):
             exits = room_data.get("exits", [])
             print(f"[DEBUG] Loaded existing room: {world_state['location']}")
         else:
+            # If no description, use a generic one for new locations
+            if not world_state["description"]:
+                world_state["description"] = f"You arrive at {world_state['location']}."
             server_message = await get_llm_response(content, prev_room=prev_room_data)
             chat_history.append({"sender": "DM", "message": server_message})
 
