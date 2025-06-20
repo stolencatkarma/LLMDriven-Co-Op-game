@@ -185,6 +185,10 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
         'equip': ('commands.equip', 'equip_command'),
         'equipment': ('commands.equipment', 'equipment_command'),
         'players': ('commands.players', 'players_command'),
+        'buy': ('commands.buy', 'buy_command'),
+        'sell': ('commands.sell', 'sell_command'),
+        'shop': ('commands.shop', 'shop_command'),
+        'help': ('commands.help', 'help_command'),
     }
     
     async def handle_command(message, content):

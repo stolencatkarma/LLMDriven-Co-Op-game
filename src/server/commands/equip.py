@@ -17,6 +17,15 @@ async def equip_command(message, args, characters, save_characters, ollama_host,
         try:
             char.equip_item(item_phrase, slot)
             save_characters(characters)
+            # --- AUTO-SAVE CAMPAIGN STATE if available ---
+            campaign = None
+            if 'save_campaign_state' in kwargs and 'load_campaign_state' in kwargs:
+                load_campaign_state = kwargs['load_campaign_state']
+                save_campaign_state = kwargs['save_campaign_state']
+                campaign = load_campaign_state()
+                if campaign:
+                    campaign['characters'] = characters
+                    save_campaign_state(campaign)
             await message.channel.send(f"{message.author.display_name} equipped {item_phrase} in {slot} slot.")
         except Exception as e:
             await message.channel.send(f"Could not equip: {e}")
