@@ -267,14 +267,22 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
 
     # --- State Machine States ---
     # 'pre_session_zero' - No campaign exists
-    # 'session_zero' - Campaign exists, character creation phase
+    # 'session_zero' - Character creation phase
     # 'campaign_started' - Campaign started, no adventure running
     # 'adventure_running' - An adventure is active
+    # 'hacking_challenge' - Special hacking scene
+    # 'combat_encounter' - Combat is active
+    # 'downtime' - Between adventures, shopping/roleplay
+    # 'roleplay_scene' - Focused social/roleplay scene
 
     def get_campaign_state():
         campaign = load_campaign_state()
         if not campaign:
             return 'pre_session_zero'
+        # Use explicit state field if present
+        if 'state' in campaign:
+            return campaign['state']
+        # Fallback to legacy logic
         if not campaign.get('campaign_started'):
             return 'session_zero'
         adventures = campaign.get('adventures', [])
@@ -283,29 +291,52 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
             return 'adventure_running'
         return 'campaign_started'
 
-    @bot.event
-    async def on_ready():
-        print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-        if discord_channel:
-            state = get_campaign_state()
-            if state == 'pre_session_zero':
-                campaign = await start_new_campaign()
-                save_campaign_state(campaign)
-                # Also update campaign.json
-                campaign_json = {
-                    "name": campaign["name"],
-                    "main_story": campaign["main_story"],
-                    "adventures": [],
-                    "current_adventure": 0,
-                    "campaign_started": False,
-                    "state": "session_zero"
-                }
-                save_campaign_json(campaign_json)
+    async def set_campaign_state(new_state, announce=True):
+        campaign = load_campaign_state()
+        if not campaign:
+            return
+        campaign['state'] = new_state
+        save_campaign_state(campaign)
+        if announce and discord_channel:
             channel = bot.get_channel(int(discord_channel))
-            if state == 'pre_session_zero' or state == 'session_zero':
-                await session_zero(channel)
-            # Do not auto-start campaign or adventure here
+            if channel:
+                await channel.send(f"Game State changed: **{new_state.replace('_', ' ').title()}**")
 
+    # Example: transition to combat encounter
+    async def start_combat_encounter():
+        await set_campaign_state('combat_encounter')
+        if discord_channel:
+            channel = bot.get_channel(int(discord_channel))
+            if channel:
+                await channel.send("A combat encounter has begun! The LLM will now manage initiative, turns, and actions.")
+
+    async def handle_combat_encounter_message(message):
+        # Insert LLM prompt logic for combat here
+        await message.channel.send("[Combat Encounter] The LLM should now prompt for initiative and manage combat turns.")
+
+    async def start_roleplay_scene():
+        await set_campaign_state('roleplay_scene')
+        if discord_channel:
+            channel = bot.get_channel(int(discord_channel))
+            if channel:
+                await channel.send("A focused roleplay scene has begun! The LLM will facilitate social interaction and choices.")
+
+    async def handle_roleplay_scene_message(message):
+        # Insert LLM prompt logic for roleplay here
+        await message.channel.send("[Roleplay Scene] The LLM should now facilitate social interaction and choices.")
+
+    async def start_downtime():
+        await set_campaign_state('downtime')
+        if discord_channel:
+            channel = bot.get_channel(int(discord_channel))
+            if channel:
+                await channel.send("Downtime has begun! Players may shop, craft, or roleplay freely.")
+
+    async def handle_downtime_message(message):
+        # Insert LLM prompt logic for downtime here
+        await message.channel.send("[Downtime] The LLM should now handle shopping, crafting, and freeform roleplay.")
+
+    # Update on_message to route based on granular state
     @bot.event
     async def on_message(message):
         if message.author.bot:
@@ -375,6 +406,18 @@ Welcome to the campaign! All adventures take place in and around a sprawling Meg
                 await handle_command(message, content)
             else:
                 await handle_player_message(message)
+            return
+        if state == 'hacking_challenge':
+            await handle_hacking_challenge_message(message)
+            return
+        if state == 'combat_encounter':
+            await handle_combat_encounter_message(message)
+            return
+        if state == 'roleplay_scene':
+            await handle_roleplay_scene_message(message)
+            return
+        if state == 'downtime':
+            await handle_downtime_message(message)
             return
         # If unknown state, ignore all messages
 
